@@ -1,5 +1,5 @@
 ---
-title: ChillSceneBot
+title: Bot-2.0
 emoji: 🤖
 colorFrom: blue
 colorTo: purple
