@@ -22,7 +22,8 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildVoiceStates
     ],
-    partials: [Partials.Message, Partials.Channel, Partials.Reaction]
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
+    rest: { timeout: 60000 } // Increase timeout to 60 seconds for unstable cloud networks
 });
 
 client.commands = new Collection();
@@ -45,9 +46,9 @@ for (const file of commandFiles) {
 const tempChannels = new Set();
 let joinToCreateChannelId = null;
 
-client.once('ready', () => {
-    console.log(`Ready! Logged in as ${client.user.tag}`);
-    client.user.setActivity('Chill Scene', { type: 3 }); // type 3 is "Watching"
+client.once('clientReady', (c) => {
+    console.log(`Ready! Logged in as ${c.user.tag}`);
+    c.user.setActivity('Chill Scene', { type: 3 }); // type 3 is "Watching"
 });
 
 client.on('interactionCreate', async interaction => {
@@ -56,7 +57,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand()) {
         // Only allow the server owner to use commands for now
         if (interaction.user.id !== interaction.guild.ownerId) {
-            return await interaction.reply({ content: '⛔ This bot is currently in maintenance mode. Only the server owner can use commands at this time.', ephemeral: true });
+            return await interaction.reply({ content: '⛔ This bot is currently in maintenance mode. Only the server owner can use commands at this time.', flags: [4096] });
         }
 
         const command = interaction.client.commands.get(interaction.commandName);

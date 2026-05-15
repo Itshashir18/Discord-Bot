@@ -13,7 +13,7 @@ module.exports = {
     async execute(interaction) {
         // Immediately tell Discord we are working on it to prevent "Did not respond"
         try {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: [4096] }); // 4096 is the flag for EPHEMERAL
         } catch (e) {
             console.error("Failed to defer reply:", e);
         }
