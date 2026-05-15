@@ -17,6 +17,38 @@ module.exports = {
         const shouldClear = interaction.options.getBoolean('clear_server');
 
         try {
+            // Function to get or create a role
+            const getOrCreateRole = async (roleData) => {
+                let role = guild.roles.cache.find(r => r.name === roleData.name);
+                if (role) {
+                    // Update existing role permissions if needed
+                    await role.edit({
+                        color: roleData.color,
+                        hoist: roleData.hoist,
+                        permissions: roleData.permissions
+                    });
+                    return role;
+                }
+                return await guild.roles.create({
+                    name: roleData.name,
+                    color: roleData.color,
+                    hoist: roleData.hoist,
+                    permissions: roleData.permissions,
+                    reason: 'Chill Scene Setup'
+                });
+            };
+
+            // Function to get or create a channel
+            const getOrCreateChannel = async (name, type, options = {}) => {
+                let channel = guild.channels.cache.find(c => c.name === name && c.type === type);
+                if (channel) {
+                    // Update existing channel
+                    await channel.edit(options);
+                    return channel;
+                }
+                return await guild.channels.create({ name, type, ...options });
+            };
+
             if (shouldClear) {
                 const channels = await guild.channels.fetch();
                 for (const channel of channels.values()) {
@@ -47,20 +79,10 @@ module.exports = {
             
             const roleCache = {};
             for (const roleData of rolesToCreate) {
-                let role = guild.roles.cache.find(r => r.name === roleData.name);
-                if (!role) {
-                    role = await guild.roles.create({
-                        name: roleData.name,
-                        color: roleData.color,
-                        hoist: roleData.hoist,
-                        permissions: roleData.permissions,
-                        reason: 'Chill Scene Setup'
-                    });
-                }
-                roleCache[roleData.name] = role;
+                roleCache[roleData.name] = await getOrCreateRole(roleData);
             }
 
-            // Get or create Members role
+            // Get or create 👻Members role
             let memberRole = guild.roles.cache.find(r => r.name === '👻Members');
             if (!memberRole) {
                 memberRole = await guild.roles.create({
@@ -73,114 +95,102 @@ module.exports = {
             roleCache['Members'] = memberRole;
 
             // --- PERMISSIONS SETUP ---
-            // Everyone is locked out of seeing the server by default.
-            // Verified users can see the server but Info channels are read-only.
             const lockedCategoryPerms = [
-                { id: guild.id, deny: ['ViewChannel'] },
-                { id: roleCache['Members'].id, allow: ['ViewChannel'] }
+                { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                { id: roleCache['Members'].id, allow: [PermissionsBitField.Flags.ViewChannel] }
             ];
 
             const readOnlyInfoPerms = [
-                { id: guild.id, deny: ['ViewChannel'] },
-                { id: roleCache['Members'].id, allow: ['ViewChannel', 'ReadMessageHistory'], deny: ['SendMessages', 'AddReactions'] }
+                { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                { id: roleCache['Members'].id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory], deny: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AddReactions] }
             ];
 
             // 2. 🔞 Verification Gate
-            const verifyCat = await guild.channels.create({ 
-                name: '🛑 Gatekeeper', 
-                type: ChannelType.GuildCategory,
-                permissionOverwrites: [
-                    { id: guild.id, allow: ['ViewChannel'] } // Everyone can see the gate!
-                ]
+            const verifyCat = await getOrCreateChannel('🛑 Gatekeeper', ChannelType.GuildCategory, {
+                permissionOverwrites: [{ id: guild.id, allow: [PermissionsBitField.Flags.ViewChannel] }]
             });
-            const verifyChannel = await guild.channels.create({ 
-                name: '🔞・verification', 
-                type: ChannelType.GuildText, 
+            const verifyChannel = await getOrCreateChannel('🔞・verification', ChannelType.GuildText, {
                 parent: verifyCat.id,
-                permissionOverwrites: [
-                    { id: guild.id, allow: ['ViewChannel', 'ReadMessageHistory'], deny: ['SendMessages', 'AddReactions'] }
-                ]
+                permissionOverwrites: [{ id: guild.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory], deny: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AddReactions] }]
             });
 
             // 3. 🔰 Welcome & Info Category
-            const infoCat = await guild.channels.create({ name: '🔰 Welcome & Info', type: ChannelType.GuildCategory, permissionOverwrites: lockedCategoryPerms });
-            const welcomeChannel = await guild.channels.create({ name: '👋・welcome', type: ChannelType.GuildText, parent: infoCat.id, permissionOverwrites: readOnlyInfoPerms });
-            const rulesChannel = await guild.channels.create({ name: '📜・rules', type: ChannelType.GuildText, parent: infoCat.id, permissionOverwrites: readOnlyInfoPerms });
-            await guild.channels.create({ name: '📢・announcements', type: ChannelType.GuildText, parent: infoCat.id, permissionOverwrites: readOnlyInfoPerms });
-            await guild.channels.create({ name: '🎁・giveaways', type: ChannelType.GuildText, parent: infoCat.id, permissionOverwrites: readOnlyInfoPerms });
+            const infoCat = await getOrCreateChannel('🔰 Welcome & Info', ChannelType.GuildCategory, { permissionOverwrites: lockedCategoryPerms });
+            const welcomeChannel = await getOrCreateChannel('👋・welcome', ChannelType.GuildText, { parent: infoCat.id, permissionOverwrites: readOnlyInfoPerms });
+            const rulesChannel = await getOrCreateChannel('📜・rules', ChannelType.GuildText, { parent: infoCat.id, permissionOverwrites: readOnlyInfoPerms });
+            await getOrCreateChannel('📢・announcements', ChannelType.GuildText, { parent: infoCat.id, permissionOverwrites: readOnlyInfoPerms });
+            await getOrCreateChannel('🎁・giveaways', ChannelType.GuildText, { parent: infoCat.id, permissionOverwrites: readOnlyInfoPerms });
 
             // 4. 🎭 Customization Category
-            const customCat = await guild.channels.create({ name: '🎭 Customization', type: ChannelType.GuildCategory, permissionOverwrites: lockedCategoryPerms });
-            const gameRolesChannel = await guild.channels.create({ name: '🎭・game-roles', type: ChannelType.GuildText, parent: customCat.id, permissionOverwrites: readOnlyInfoPerms });
-            await guild.channels.create({ name: '🎨・color-roles', type: ChannelType.GuildText, parent: customCat.id, permissionOverwrites: readOnlyInfoPerms });
+            const customCat = await getOrCreateChannel('🎭 Customization', ChannelType.GuildCategory, { permissionOverwrites: lockedCategoryPerms });
+            const gameRolesChannel = await getOrCreateChannel('🎭・game-roles', ChannelType.GuildText, { parent: customCat.id, permissionOverwrites: readOnlyInfoPerms });
+            await getOrCreateChannel('🎨・color-roles', ChannelType.GuildText, { parent: customCat.id, permissionOverwrites: readOnlyInfoPerms });
 
-            // 5. 💬 Community Hub Category (With Slowmode!)
-            const commCat = await guild.channels.create({ name: '💬 Community Hub', type: ChannelType.GuildCategory, permissionOverwrites: lockedCategoryPerms });
-            await guild.channels.create({ name: '💬・general-chat', type: ChannelType.GuildText, parent: commCat.id, rateLimitPerUser: 5 });
-            await guild.channels.create({ name: '🐸・memes', type: ChannelType.GuildText, parent: commCat.id });
-            await guild.channels.create({ name: '📷・media-and-clips', type: ChannelType.GuildText, parent: commCat.id });
-            await guild.channels.create({ name: '🤖・bot-commands', type: ChannelType.GuildText, parent: commCat.id });
+            // 5. 💬 Community Hub Category
+            const commCat = await getOrCreateChannel('💬 Community Hub', ChannelType.GuildCategory, { permissionOverwrites: lockedCategoryPerms });
+            await getOrCreateChannel('💬・general-chat', ChannelType.GuildText, { parent: commCat.id, rateLimitPerUser: 5 });
+            await getOrCreateChannel('🐸・memes', ChannelType.GuildText, { parent: commCat.id });
+            await getOrCreateChannel('📷・media-and-clips', ChannelType.GuildText, { parent: commCat.id });
+            await getOrCreateChannel('🤖・bot-commands', ChannelType.GuildText, { parent: commCat.id });
 
             // 6. 🎯 VALORANT ZONE
-            const valCat = await guild.channels.create({ name: '🎯 VALORANT ZONE', type: ChannelType.GuildCategory, permissionOverwrites: lockedCategoryPerms });
-            await guild.channels.create({ name: '💬・val-chat', type: ChannelType.GuildText, parent: valCat.id });
-            await guild.channels.create({ name: '🎮・val-lfg', type: ChannelType.GuildText, parent: valCat.id });
-            await guild.channels.create({ name: '🔊 Val Squad 1', type: ChannelType.GuildVoice, parent: valCat.id, userLimit: 5 });
-            await guild.channels.create({ name: '🔊 Val Squad 2', type: ChannelType.GuildVoice, parent: valCat.id, userLimit: 5 });
+            const valCat = await getOrCreateChannel('🎯 VALORANT ZONE', ChannelType.GuildCategory, { permissionOverwrites: lockedCategoryPerms });
+            await getOrCreateChannel('💬・val-chat', ChannelType.GuildText, { parent: valCat.id });
+            await getOrCreateChannel('🎮・val-lfg', ChannelType.GuildText, { parent: valCat.id });
+            await getOrCreateChannel('🔊 Val Squad 1', ChannelType.GuildVoice, { parent: valCat.id, userLimit: 5 });
+            await getOrCreateChannel('🔊 Val Squad 2', ChannelType.GuildVoice, { parent: valCat.id, userLimit: 5 });
 
             // 7. ⚔️ LEAGUE OF LEGENDS ZONE
-            const lolCat = await guild.channels.create({ name: '⚔️ LEAGUE ZONE', type: ChannelType.GuildCategory, permissionOverwrites: lockedCategoryPerms });
-            await guild.channels.create({ name: '💬・league-chat', type: ChannelType.GuildText, parent: lolCat.id });
-            await guild.channels.create({ name: '🎮・league-lfg', type: ChannelType.GuildText, parent: lolCat.id });
-            await guild.channels.create({ name: '🔊 League Squad 1', type: ChannelType.GuildVoice, parent: lolCat.id, userLimit: 5 });
+            const lolCat = await getOrCreateChannel('⚔️ LEAGUE ZONE', ChannelType.GuildCategory, { permissionOverwrites: lockedCategoryPerms });
+            await getOrCreateChannel('💬・league-chat', ChannelType.GuildText, { parent: lolCat.id });
+            await getOrCreateChannel('🎮・league-lfg', ChannelType.GuildText, { parent: lolCat.id });
+            await getOrCreateChannel('🔊 League Squad 1', ChannelType.GuildVoice, { parent: lolCat.id, userLimit: 5 });
 
             // 8. 🔊 Dynamic Voice Lounge
-            const voiceCat = await guild.channels.create({ name: '🔊 Voice Lounge', type: ChannelType.GuildCategory, permissionOverwrites: lockedCategoryPerms });
-            await guild.channels.create({ name: '🔊 The Lounge', type: ChannelType.GuildVoice, parent: voiceCat.id });
-            await guild.channels.create({ name: '🔴 Streamers', type: ChannelType.GuildVoice, parent: voiceCat.id });
-            await guild.channels.create({ name: '➕ Create Voice', type: ChannelType.GuildVoice, parent: voiceCat.id });
+            const voiceCat = await getOrCreateChannel('🔊 Voice Lounge', ChannelType.GuildCategory, { permissionOverwrites: lockedCategoryPerms });
+            await getOrCreateChannel('🔊 The Lounge', ChannelType.GuildVoice, { parent: voiceCat.id });
+            await getOrCreateChannel('🔴 Streamers', ChannelType.GuildVoice, { parent: voiceCat.id });
+            await getOrCreateChannel('➕ Create Voice', ChannelType.GuildVoice, { parent: voiceCat.id });
 
             // 9. 💎 Exclusive VIP Lounge
-            const vipCat = await guild.channels.create({ 
-                name: '💎 VIP Lounge', 
-                type: ChannelType.GuildCategory,
+            const vipCat = await getOrCreateChannel('💎 VIP Lounge', ChannelType.GuildCategory, {
                 permissionOverwrites: [
-                    { id: guild.id, deny: ['ViewChannel'] },
-                    { id: roleCache['👑 Owner'].id, allow: ['ViewChannel'] },
-                    { id: roleCache['✨ VIP'].id, allow: ['ViewChannel'] }
+                    { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                    { id: roleCache['👑 Owner'].id, allow: [PermissionsBitField.Flags.ViewChannel] },
+                    { id: roleCache['✨ VIP'].id, allow: [PermissionsBitField.Flags.ViewChannel] }
                 ]
             });
-            await guild.channels.create({ name: '💬・vip-chat', type: ChannelType.GuildText, parent: vipCat.id });
-            await guild.channels.create({ name: '🔊 VIP Voice', type: ChannelType.GuildVoice, parent: vipCat.id });
+            await getOrCreateChannel('💬・vip-chat', ChannelType.GuildText, { parent: vipCat.id });
+            await getOrCreateChannel('🔊 VIP Voice', ChannelType.GuildVoice, { parent: vipCat.id });
 
-            // 10. 🎫 Support & Staff Category (Hidden)
-            const staffCat = await guild.channels.create({ 
-                name: '🎫 Support & Staff', 
-                type: ChannelType.GuildCategory,
+            // 10. 🎫 Support & Staff Category
+            const staffCat = await getOrCreateChannel('🎫 Support & Staff', ChannelType.GuildCategory, {
                 permissionOverwrites: [
-                    { id: guild.id, deny: ['ViewChannel'] },
-                    { id: roleCache['🛡️ Admin'].id, allow: ['ViewChannel'] },
-                    { id: roleCache['🗡️ Moderator'].id, allow: ['ViewChannel'] }
+                    { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                    { id: roleCache['🛡️ Admin'].id, allow: [PermissionsBitField.Flags.ViewChannel] },
+                    { id: roleCache['🗡️ Moderator'].id, allow: [PermissionsBitField.Flags.ViewChannel] }
                 ]
             });
             
-            // Ticket creation channel is visible to verified members
-            const ticketChannel = await guild.channels.create({ 
-                name: '🎫・create-ticket', 
-                type: ChannelType.GuildText, 
+            const ticketChannel = await getOrCreateChannel('🎫・create-ticket', ChannelType.GuildText, {
                 parent: staffCat.id,
                 permissionOverwrites: [
-                    { id: guild.id, deny: ['ViewChannel'] },
-                    { id: roleCache['Members'].id, allow: ['ViewChannel'], deny: ['SendMessages'] }
+                    { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                    { id: roleCache['Members'].id, allow: [PermissionsBitField.Flags.ViewChannel], deny: [PermissionsBitField.Flags.SendMessages] }
                 ]
             });
             
-            await guild.channels.create({ name: '🚨・staff-chat', type: ChannelType.GuildText, parent: staffCat.id });
-            await guild.channels.create({ name: 'logs', type: ChannelType.GuildText, parent: staffCat.id });
+            await getOrCreateChannel('🚨・staff-chat', ChannelType.GuildText, { parent: staffCat.id });
+            await getOrCreateChannel('logs', ChannelType.GuildText, { parent: staffCat.id });
 
-            // --- SEND EMBEDS ---
+            // --- SEND EMBEDS (Only if channel is empty to avoid spam) ---
+            const sendEmbedIfEmpty = async (channel, embed, components = []) => {
+                const messages = await channel.messages.fetch({ limit: 1 });
+                if (messages.size === 0) {
+                    await channel.send({ embeds: [embed], components: components });
+                }
+            };
 
-            // Send Verification Embed
             const verifyEmbed = new EmbedBuilder()
                 .setTitle('🤖 Anti-Bot Verification')
                 .setDescription('Welcome to **Chill Scene**! To prevent spam and maintain a high-quality community, we require all new members to verify they are not automated bots.\n\nBy clicking the button below, you confirm that you are a human user. This will unlock the rest of the server.')
@@ -188,9 +198,8 @@ module.exports = {
             const verifyBtn = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('verify_18').setLabel('I am Human (Verify)').setStyle(ButtonStyle.Success).setEmoji('👤')
             );
-            await verifyChannel.send({ embeds: [verifyEmbed], components: [verifyBtn] });
+            await sendEmbedIfEmpty(verifyChannel, verifyEmbed, [verifyBtn]);
 
-            // Send Ticket Message
             const ticketEmbed = new EmbedBuilder()
                 .setTitle('🎫 Support Tickets')
                 .setDescription('Need help? Click the button below to open a private ticket with our staff.')
@@ -198,31 +207,22 @@ module.exports = {
             const ticketBtn = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('open_ticket').setLabel('Open Ticket').setStyle(ButtonStyle.Primary).setEmoji('🎫')
             );
-            await ticketChannel.send({ embeds: [ticketEmbed], components: [ticketBtn] });
+            await sendEmbedIfEmpty(ticketChannel, ticketEmbed, [ticketBtn]);
 
-            // Send Welcome Message
             const welcomeEmbed = new EmbedBuilder()
                 .setTitle('👋 Welcome to Chill Scene!')
                 .setDescription(`Welcome to the ultimate chill gaming community!\n\n🔹 Check the <#${rulesChannel.id}> before chatting.\n🔹 Grab your roles in <#${gameRolesChannel.id}>.\n🔹 Find players in our dedicated LFG zones!\n\nEnjoy your stay!`)
                 .setColor('#2b2d31')
                 .setImage('https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80');
-            await welcomeChannel.send({ embeds: [welcomeEmbed] });
+            await sendEmbedIfEmpty(welcomeChannel, welcomeEmbed);
 
-            // Send Rules Message
             const rulesEmbed = new EmbedBuilder()
                 .setTitle('📜 Chill Scene Rules')
                 .setDescription('**1. Be Respectful**\nTreat everyone with respect. Absolutely no harassment, witch hunting, sexism, racism, or hate speech will be tolerated.\n\n**2. No Spam or Self-Promotion**\nDo not spam messages, emojis, or links. No self-promotion (server invites, advertisements, etc) without permission.\n\n**3. NSFW Content is Prohibited**\nEven though this is an 18+ server, keep all public channels free of explicit NSFW media.\n\n**4. Follow Discord TOS**\nAll members must follow the Discord Terms of Service and Community Guidelines.\n\n**5. Listen to Staff**\nStaff members have the final say. If you have an issue, use the ticket system.')
                 .setColor('#2b2d31');
-            await rulesChannel.send({ embeds: [rulesEmbed] });
+            await sendEmbedIfEmpty(rulesChannel, rulesEmbed);
 
-            // Send Game Roles Message
-            const rolesEmbed = new EmbedBuilder()
-                .setTitle('🎭 Select Your Games')
-                .setDescription('React to this message or ask a moderator to assign you the specific roles for the games you play! This will give you access to be pinged when players are looking for a group.')
-                .setColor('#2b2d31');
-            await gameRolesChannel.send({ embeds: [rolesEmbed] });
-
-            await interaction.editReply({ content: '✅ Chill Scene Setup Complete! The server is now protected by an anti-bot verification gate.' });
+            await interaction.editReply({ content: '✅ Chill Scene Setup Complete! Existing channels were updated to preserve chat history.' });
 
         } catch (error) {
             console.error('Setup error:', error);
