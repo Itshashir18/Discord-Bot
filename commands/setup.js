@@ -101,7 +101,7 @@ module.exports = {
             ];
 
             const readOnlyInfoPerms = [
-                { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AddReactions] },
                 { id: roleCache['Members'].id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory], deny: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AddReactions] }
             ];
 
