@@ -37,7 +37,15 @@ const client = new Client({
         GatewayIntentBits.GuildVoiceStates
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
-    rest: { timeout: 60000 } // Increase timeout to 60 seconds for unstable cloud networks
+    rest: { 
+        timeout: 60000,
+        retries: 5 
+    },
+    // Adding gateway options for better stability
+    ws: {
+        large_threshold: 250,
+        compress: true
+    }
 });
 
 client.commands = new Collection();
@@ -180,17 +188,21 @@ process.on('uncaughtException', (err) => {
 });
 
 const login = async () => {
-    console.log('Attempting to login to Discord...');
+    console.log(`[${new Date().toISOString()}] Attempting to login to Discord...`);
     try {
         await client.login(process.env.DISCORD_TOKEN);
     } catch (err) {
-        console.error('CRITICAL: Failed to login to Discord:', err.message);
+        console.error(`[${new Date().toISOString()}] CRITICAL: Failed to login:`, err.message);
+        
         if (err.message.includes('intents')) {
-            console.error('ADVICE: Please enable all "Privileged Gateway Intents" in the Discord Developer Portal (Bot tab).');
-        } else {
-            console.log('Retrying in 10 seconds...');
-            setTimeout(login, 10000);
+            console.error('ADVICE: Please enable all "Privileged Gateway Intents" in the Discord Developer Portal.');
+            return; // Don't retry if it's an intent error
         }
+
+        // Add randomized exponential backoff (10s to 30s) to avoid rate limit loops
+        const retryDelay = Math.floor(Math.random() * 20000) + 10000;
+        console.log(`Retrying in ${retryDelay/1000} seconds...`);
+        setTimeout(login, retryDelay);
     }
 };
 
