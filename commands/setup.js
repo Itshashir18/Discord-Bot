@@ -42,7 +42,6 @@ module.exports = {
                 { name: '🛡️ Admin', color: '#FF4500', hoist: true, permissions: [PermissionsBitField.Flags.Administrator] },
                 { name: '🗡️ Moderator', color: '#1E90FF', hoist: true, permissions: [PermissionsBitField.Flags.ManageMessages, PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.BanMembers, PermissionsBitField.Flags.ModerateMembers, PermissionsBitField.Flags.ManageChannels, PermissionsBitField.Flags.ManageRoles] },
                 { name: '✨ VIP', color: '#FF1493', hoist: true, permissions: [] },
-                { name: '🔞 18+ Verified', color: '#00FA9A', hoist: true, permissions: [] },
                 { name: '🤖 Bots', color: '#A9A9A9', hoist: false, permissions: [] }
             ];
             
@@ -61,17 +60,29 @@ module.exports = {
                 roleCache[roleData.name] = role;
             }
 
+            // Get or create Members role
+            let memberRole = guild.roles.cache.find(r => r.name === 'Members');
+            if (!memberRole) {
+                memberRole = await guild.roles.create({
+                    name: 'Members',
+                    color: '#00FA9A',
+                    hoist: true,
+                    reason: 'Chill Scene Setup (Verification Role)'
+                });
+            }
+            roleCache['Members'] = memberRole;
+
             // --- PERMISSIONS SETUP ---
             // Everyone is locked out of seeing the server by default.
             // Verified users can see the server but Info channels are read-only.
             const lockedCategoryPerms = [
                 { id: guild.id, deny: ['ViewChannel'] },
-                { id: roleCache['🔞 18+ Verified'].id, allow: ['ViewChannel'] }
+                { id: roleCache['Members'].id, allow: ['ViewChannel'] }
             ];
 
             const readOnlyInfoPerms = [
                 { id: guild.id, deny: ['ViewChannel'] },
-                { id: roleCache['🔞 18+ Verified'].id, allow: ['ViewChannel', 'ReadMessageHistory'], deny: ['SendMessages', 'AddReactions'] }
+                { id: roleCache['Members'].id, allow: ['ViewChannel', 'ReadMessageHistory'], deny: ['SendMessages', 'AddReactions'] }
             ];
 
             // 2. 🔞 Verification Gate
@@ -160,7 +171,7 @@ module.exports = {
                 parent: staffCat.id,
                 permissionOverwrites: [
                     { id: guild.id, deny: ['ViewChannel'] },
-                    { id: roleCache['🔞 18+ Verified'].id, allow: ['ViewChannel'], deny: ['SendMessages'] }
+                    { id: roleCache['Members'].id, allow: ['ViewChannel'], deny: ['SendMessages'] }
                 ]
             });
             

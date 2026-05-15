@@ -69,12 +69,12 @@ client.on('interactionCreate', async interaction => {
     } else if (interaction.isButton()) {
         if (interaction.customId === 'verify_18') {
             await interaction.guild.roles.fetch(); // Ensure roles are cached
-            const role = interaction.guild.roles.cache.find(r => r.name === '🔞 18+ Verified');
+            const role = interaction.guild.roles.cache.find(r => r.name === 'Members');
             if (role) {
                 await interaction.member.roles.add(role);
                 await interaction.reply({ content: '✅ You have been successfully verified! Welcome to Chill Scene. The server is now unlocked for you.', ephemeral: true });
             } else {
-                await interaction.reply({ content: 'Verification failed: Could not find the 18+ role.', ephemeral: true });
+                await interaction.reply({ content: 'Verification failed: Could not find the "Members" role in this server. Please make sure the role exists!', ephemeral: true });
             }
         } else if (interaction.customId === 'open_ticket') {
             const guild = interaction.guild;
