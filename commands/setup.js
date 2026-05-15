@@ -185,10 +185,14 @@ module.exports = {
             await getOrCreateChannel('🚨・staff-chat', ChannelType.GuildText, { parent: staffCat.id });
             await getOrCreateChannel('logs', ChannelType.GuildText, { parent: staffCat.id });
 
-            // --- SEND EMBEDS (Only if channel is empty to avoid spam) ---
-            const sendEmbedIfEmpty = async (channel, embed, components = []) => {
-                const messages = await channel.messages.fetch({ limit: 1 });
-                if (messages.size === 0) {
+            // --- SEND EMBEDS (Update existing if possible) ---
+            const updateOrSendEmbed = async (channel, embed, components = []) => {
+                const messages = await channel.messages.fetch({ limit: 10 });
+                const botMessage = messages.find(m => m.author.id === client.user.id);
+                
+                if (botMessage) {
+                    await botMessage.edit({ embeds: [embed], components: components });
+                } else {
                     await channel.send({ embeds: [embed], components: components });
                 }
             };
@@ -200,7 +204,7 @@ module.exports = {
             const verifyBtn = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('verify_18').setLabel('I am Human (Verify)').setStyle(ButtonStyle.Success).setEmoji('👤')
             );
-            await sendEmbedIfEmpty(verifyChannel, verifyEmbed, [verifyBtn]);
+            await updateOrSendEmbed(verifyChannel, verifyEmbed, [verifyBtn]);
 
             const ticketEmbed = new EmbedBuilder()
                 .setTitle('🎫 Support Tickets')
@@ -209,20 +213,20 @@ module.exports = {
             const ticketBtn = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('open_ticket').setLabel('Open Ticket').setStyle(ButtonStyle.Primary).setEmoji('🎫')
             );
-            await sendEmbedIfEmpty(ticketChannel, ticketEmbed, [ticketBtn]);
+            await updateOrSendEmbed(ticketChannel, ticketEmbed, [ticketBtn]);
 
             const welcomeEmbed = new EmbedBuilder()
                 .setTitle('👋 Welcome to Chill Scene!')
                 .setDescription(`Welcome to the ultimate chill gaming community!\n\n🔹 Check the <#${rulesChannel.id}> before chatting.\n🔹 Grab your roles in <#${gameRolesChannel.id}>.\n🔹 Find players in our dedicated LFG zones!\n\nEnjoy your stay!`)
                 .setColor('#2b2d31')
                 .setImage('https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80');
-            await sendEmbedIfEmpty(welcomeChannel, welcomeEmbed);
+            await updateOrSendEmbed(welcomeChannel, welcomeEmbed);
 
             const rulesEmbed = new EmbedBuilder()
                 .setTitle('📜 Chill Scene Rules')
                 .setDescription('**1. Be Respectful**\nTreat everyone with respect. Absolutely no harassment, witch hunting, sexism, racism, or hate speech will be tolerated.\n\n**2. No Spam or Self-Promotion**\nDo not spam messages, emojis, or links. No self-promotion (server invites, advertisements, etc) without permission.\n\n**3. NSFW Content is Prohibited**\nEven though this is an 18+ server, keep all public channels free of explicit NSFW media.\n\n**4. Follow Discord TOS**\nAll members must follow the Discord Terms of Service and Community Guidelines.\n\n**5. Listen to Staff**\nStaff members have the final say. If you have an issue, use the ticket system.')
                 .setColor('#2b2d31');
-            await sendEmbedIfEmpty(rulesChannel, rulesEmbed);
+            await updateOrSendEmbed(rulesChannel, rulesEmbed);
 
             await interaction.editReply({ content: '✅ Chill Scene Setup Complete! Existing channels were updated to preserve chat history.' });
 
