@@ -97,12 +97,14 @@ module.exports = {
             // --- PERMISSIONS SETUP ---
             const lockedCategoryPerms = [
                 { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-                { id: roleCache['Members'].id, allow: [PermissionsBitField.Flags.ViewChannel] }
+                { id: roleCache['Members'].id, allow: [PermissionsBitField.Flags.ViewChannel] },
+                { id: roleCache['🤖 Bots'].id, allow: [PermissionsBitField.Flags.ViewChannel] }
             ];
 
             const readOnlyInfoPerms = [
                 { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AddReactions] },
-                { id: roleCache['Members'].id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory], deny: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AddReactions] }
+                { id: roleCache['Members'].id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory], deny: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AddReactions] },
+                { id: roleCache['🤖 Bots'].id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory] }
             ];
 
             // 2. 🔞 Verification Gate

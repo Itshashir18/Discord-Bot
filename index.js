@@ -73,6 +73,8 @@ client.on('interactionCreate', async interaction => {
         }
     } else if (interaction.isButton()) {
         if (interaction.customId === 'verify_18') {
+            if (interaction.user.bot) return; // Bots shouldn't be human verified
+            
             await interaction.guild.roles.fetch(); // Ensure roles are cached
             const role = interaction.guild.roles.cache.find(r => r.name === '👻Members');
             if (role) {
