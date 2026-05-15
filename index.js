@@ -4,6 +4,12 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const https = require('https');
+const dns = require('node:dns');
+
+// Force IPv4 to avoid broken IPv6 routes on cloud platforms
+if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder('ipv4first');
+}
 
 // Network diagnostic test
 console.log('--- Network Diagnostic ---');
@@ -55,7 +61,9 @@ const client = new Client({
             browser: 'Discord.js',
             device: 'HuggingFace'
         }
-    }
+    },
+    // Adding a 30s connection timeout for the gateway
+    waitOnGuilds: false
 });
 
 client.commands = new Collection();
