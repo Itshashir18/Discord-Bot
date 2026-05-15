@@ -155,4 +155,10 @@ process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
 });
 
-client.login(process.env.DISCORD_TOKEN);
+console.log('Attempting to login to Discord...');
+client.login(process.env.DISCORD_TOKEN).catch(err => {
+    console.error('CRITICAL: Failed to login to Discord:', err.message);
+    if (err.message.includes('intents')) {
+        console.error('ADVICE: Please enable all "Privileged Gateway Intents" in the Discord Developer Portal (Bot tab).');
+    }
+});
