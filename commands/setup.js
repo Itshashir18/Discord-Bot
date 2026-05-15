@@ -61,10 +61,10 @@ module.exports = {
             }
 
             // Get or create Members role
-            let memberRole = guild.roles.cache.find(r => r.name === 'Members');
+            let memberRole = guild.roles.cache.find(r => r.name === '👻Members');
             if (!memberRole) {
                 memberRole = await guild.roles.create({
-                    name: 'Members',
+                    name: '👻Members',
                     color: '#00FA9A',
                     hoist: true,
                     reason: 'Chill Scene Setup (Verification Role)'
@@ -182,11 +182,11 @@ module.exports = {
 
             // Send Verification Embed
             const verifyEmbed = new EmbedBuilder()
-                .setTitle('🛑 Age Verification Required')
-                .setDescription('Welcome to **Chill Scene**! This is an exclusive 18+ community.\n\nBy clicking the button below, you confirm that you are at least **18 years of age**. If you are not 18, please leave the server immediately.')
-                .setColor('#FF0000');
+                .setTitle('🤖 Anti-Bot Verification')
+                .setDescription('Welcome to **Chill Scene**! To prevent spam and maintain a high-quality community, we require all new members to verify they are not automated bots.\n\nBy clicking the button below, you confirm that you are a human user. This will unlock the rest of the server.')
+                .setColor('#00FA9A');
             const verifyBtn = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('verify_18').setLabel('I am 18+ (Verify)').setStyle(ButtonStyle.Success).setEmoji('🔞')
+                new ButtonBuilder().setCustomId('verify_18').setLabel('I am Human (Verify)').setStyle(ButtonStyle.Success).setEmoji('👤')
             );
             await verifyChannel.send({ embeds: [verifyEmbed], components: [verifyBtn] });
 
@@ -222,7 +222,7 @@ module.exports = {
                 .setColor('#2b2d31');
             await gameRolesChannel.send({ embeds: [rolesEmbed] });
 
-            await interaction.editReply({ content: '✅ Chill Scene Setup Complete! The server is now locked behind an 18+ verification gate.' });
+            await interaction.editReply({ content: '✅ Chill Scene Setup Complete! The server is now protected by an anti-bot verification gate.' });
 
         } catch (error) {
             console.error('Setup error:', error);
