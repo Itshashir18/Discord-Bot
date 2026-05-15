@@ -3,6 +3,20 @@ const { Client, GatewayIntentBits, Collection, Partials, ChannelType } = require
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
+const https = require('https');
+
+// Network diagnostic test
+console.log('--- Network Diagnostic ---');
+const testConnection = (url) => {
+    https.get(url, (res) => {
+        console.log(`STASH: Connection to ${url} succeeded with status ${res.statusCode}`);
+    }).on('error', (err) => {
+        console.error(`STASH: Connection to ${url} FAILED:`, err.message);
+    });
+};
+testConnection('https://www.google.com');
+testConnection('https://discord.com/api/v10/gateway');
+console.log('-------------------------');
 
 // Express server to keep the bot alive on cloud platforms
 const app = express();
