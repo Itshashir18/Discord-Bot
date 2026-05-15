@@ -164,10 +164,19 @@ process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
 });
 
-console.log('Attempting to login to Discord...');
-client.login(process.env.DISCORD_TOKEN).catch(err => {
-    console.error('CRITICAL: Failed to login to Discord:', err.message);
-    if (err.message.includes('intents')) {
-        console.error('ADVICE: Please enable all "Privileged Gateway Intents" in the Discord Developer Portal (Bot tab).');
+const login = async () => {
+    console.log('Attempting to login to Discord...');
+    try {
+        await client.login(process.env.DISCORD_TOKEN);
+    } catch (err) {
+        console.error('CRITICAL: Failed to login to Discord:', err.message);
+        if (err.message.includes('intents')) {
+            console.error('ADVICE: Please enable all "Privileged Gateway Intents" in the Discord Developer Portal (Bot tab).');
+        } else {
+            console.log('Retrying in 10 seconds...');
+            setTimeout(login, 10000);
+        }
     }
-});
+};
+
+login();
