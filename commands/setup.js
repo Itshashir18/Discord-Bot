@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ChannelType, PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, ChannelType, PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -13,7 +13,7 @@ module.exports = {
     async execute(interaction) {
         // Immediately tell Discord we are working on it to prevent "Did not respond"
         try {
-            await interaction.deferReply({ flags: [4096] }); // 4096 is the flag for EPHEMERAL
+            await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
         } catch (e) {
             console.error("Failed to defer reply:", e);
         }

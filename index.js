@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection, Partials, ChannelType } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, Partials, ChannelType, MessageFlags } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
@@ -50,7 +50,8 @@ const client = new Client({
     rest: { 
         timeout: 60000,
         retries: 10,
-        headers: { 'User-Agent': 'DiscordBot (https://github.com/discordjs/discord.js, 14.14.1)' }
+        // Using a more robust user agent to avoid Cloudflare blocks
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) DiscordBot (https://github.com/discordjs/discord.js, 14.14.1)' }
     },
     // Adding gateway options for better stability
     ws: {
