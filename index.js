@@ -51,6 +51,8 @@ client.once('ready', () => {
 });
 
 client.on('interactionCreate', async interaction => {
+    console.log(`DEBUG: Received interaction: ${interaction.type === 2 ? interaction.commandName : interaction.customId} from ${interaction.user.tag}`);
+    
     if (interaction.isChatInputCommand()) {
         // Only allow the server owner to use commands for now
         if (interaction.user.id !== interaction.guild.ownerId) {
