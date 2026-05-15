@@ -11,7 +11,12 @@ module.exports = {
                 .setRequired(false)),
     
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        // Immediately tell Discord we are working on it to prevent "Did not respond"
+        try {
+            await interaction.deferReply({ ephemeral: true });
+        } catch (e) {
+            console.error("Failed to defer reply:", e);
+        }
         
         const guild = interaction.guild;
         const shouldClear = interaction.options.getBoolean('clear_server');
