@@ -8,7 +8,10 @@ const https = require('https');
 // Network diagnostic test
 console.log('--- Network Diagnostic ---');
 const testConnection = (url) => {
-    https.get(url, (res) => {
+    const options = {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+    };
+    https.get(url, options, (res) => {
         console.log(`STASH: Connection to ${url} succeeded with status ${res.statusCode}`);
     }).on('error', (err) => {
         console.error(`STASH: Connection to ${url} FAILED:`, err.message);
@@ -16,6 +19,7 @@ const testConnection = (url) => {
 };
 testConnection('https://www.google.com');
 testConnection('https://discord.com/api/v10/gateway');
+testConnection('https://discord.com/api/v10/users/@me'); // Test a different endpoint
 console.log('-------------------------');
 
 // Express server to keep the bot alive on cloud platforms
@@ -39,12 +43,18 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
     rest: { 
         timeout: 60000,
-        retries: 5 
+        retries: 10,
+        headers: { 'User-Agent': 'DiscordBot (https://github.com/discordjs/discord.js, 14.14.1)' }
     },
     // Adding gateway options for better stability
     ws: {
         large_threshold: 250,
-        compress: true
+        compress: true,
+        properties: {
+            os: 'linux',
+            browser: 'Discord.js',
+            device: 'HuggingFace'
+        }
     }
 });
 
