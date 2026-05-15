@@ -52,6 +52,11 @@ client.once('ready', () => {
 
 client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand()) {
+        // Only allow the server owner to use commands for now
+        if (interaction.user.id !== interaction.guild.ownerId) {
+            return await interaction.reply({ content: '⛔ This bot is currently in maintenance mode. Only the server owner can use commands at this time.', ephemeral: true });
+        }
+
         const command = interaction.client.commands.get(interaction.commandName);
 
         if (!command) return;
