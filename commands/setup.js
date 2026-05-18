@@ -28,7 +28,7 @@ module.exports = {
                 if (role) {
                     // Update existing role permissions if needed
                     await role.edit({
-                        colors: roleData.color,
+                        color: roleData.color,
                         hoist: roleData.hoist,
                         permissions: roleData.permissions
                     });
