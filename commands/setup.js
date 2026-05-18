@@ -28,7 +28,7 @@ module.exports = {
                 if (role) {
                     // Update existing role permissions if needed
                     await role.edit({
-                        color: roleData.color,
+                        colors: roleData.color,
                         hoist: roleData.hoist,
                         permissions: roleData.permissions
                     });
@@ -193,7 +193,7 @@ module.exports = {
             // --- SEND EMBEDS (Update existing if possible) ---
             const updateOrSendEmbed = async (channel, embed, components = []) => {
                 const messages = await channel.messages.fetch({ limit: 10 });
-                const botMessage = messages.find(m => m.author.id === client.user.id);
+                const botMessage = messages.find(m => m.author.id === interaction.client.user.id);
                 
                 if (botMessage) {
                     await botMessage.edit({ embeds: [embed], components: components });
