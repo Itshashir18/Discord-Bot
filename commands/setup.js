@@ -153,7 +153,23 @@ module.exports = {
             await getOrCreateChannel('🎮・league-lfg', ChannelType.GuildText, { parent: lolCat.id });
             await getOrCreateChannel('🔊 League Squad 1', ChannelType.GuildVoice, { parent: lolCat.id, userLimit: 5 });
 
-            // 8. 🔊 Dynamic Voice Lounge
+            // 8. 🏗️ MINECRAFT ZONE
+            const mcCat = await getOrCreateChannel('🏗️ MINECRAFT ZONE', ChannelType.GuildCategory, { permissionOverwrites: lockedCategoryPerms });
+            await getOrCreateChannel('💬・mc-chat', ChannelType.GuildText, { parent: mcCat.id });
+            await getOrCreateChannel('🗺️・mc-builds', ChannelType.GuildText, { parent: mcCat.id });
+            await getOrCreateChannel('🎮・mc-lfg', ChannelType.GuildText, { parent: mcCat.id });
+            await getOrCreateChannel('🔊 MC Server 1', ChannelType.GuildVoice, { parent: mcCat.id, userLimit: 10 });
+            await getOrCreateChannel('🔊 MC Server 2', ChannelType.GuildVoice, { parent: mcCat.id, userLimit: 10 });
+
+            // 9. 🌀 FORTNITE ZONE
+            const fnCat = await getOrCreateChannel('🌀 FORTNITE ZONE', ChannelType.GuildCategory, { permissionOverwrites: lockedCategoryPerms });
+            await getOrCreateChannel('💬・fn-chat', ChannelType.GuildText, { parent: fnCat.id });
+            await getOrCreateChannel('🎮・fn-lfg', ChannelType.GuildText, { parent: fnCat.id });
+            await getOrCreateChannel('🔊 FN Duo', ChannelType.GuildVoice, { parent: fnCat.id, userLimit: 2 });
+            await getOrCreateChannel('🔊 FN Trio', ChannelType.GuildVoice, { parent: fnCat.id, userLimit: 3 });
+            await getOrCreateChannel('🔊 FN Squad', ChannelType.GuildVoice, { parent: fnCat.id, userLimit: 4 });
+
+            // 10. 🔊 Dynamic Voice Lounge
             const voiceCat = await getOrCreateChannel('🔊 Voice Lounge', ChannelType.GuildCategory, { permissionOverwrites: lockedCategoryPerms });
             await getOrCreateChannel('🔊 The Lounge', ChannelType.GuildVoice, { parent: voiceCat.id });
             await getOrCreateChannel('🔴 Streamers', ChannelType.GuildVoice, { parent: voiceCat.id });
