@@ -24,15 +24,17 @@ function formatDuration(seconds) {
 }
 
 /**
- * Search YouTube or resolve a URL using the system yt-dlp binary.
- * No npm package needed — calls the compiled binary directly.
+ * Search YouTube or resolve a URL using system yt-dlp binary.
+ * Returns basic song info (title, url, duration, thumbnail).
  */
 async function searchYouTube(query) {
     const isUrl = query.startsWith('http://') || query.startsWith('https://');
     const target = isUrl ? `"${query}"` : `"ytsearch1:${query}"`;
 
-    const cmd = `yt-dlp --dump-json --no-warnings --no-call-home --no-check-certificate --flat-playlist ${target}`;
-    const { stdout } = await execAsync(cmd, { maxBuffer: 10 * 1024 * 1024 });
+    const { stdout } = await execAsync(
+        `yt-dlp --dump-json --no-warnings --no-check-certificate ${target}`,
+        { maxBuffer: 10 * 1024 * 1024 }
+    );
 
     const lines = stdout.trim().split('\n').filter(Boolean);
     if (!lines.length) return null;
@@ -41,41 +43,44 @@ async function searchYouTube(query) {
 
     return {
         title: video.title || 'Unknown Title',
-        url: video.webpage_url || video.url || query,
+        url: video.webpage_url || video.original_url || query,
         duration: formatDuration(video.duration || 0),
         thumbnail: video.thumbnail || '',
     };
 }
 
 /**
- * Get a raw PCM audio stream for a given YouTube URL via yt-dlp → ffmpeg pipeline.
+ * Two-step audio streaming:
+ * 1. yt-dlp --get-url → extract the direct CDN audio URL
+ * 2. ffmpeg -i <CDN_URL> → stream with reconnect support → raw PCM to Discord
+ *
+ * This is more reliable than piping yt-dlp into ffmpeg directly.
  */
-function getAudioStream(url) {
-    // yt-dlp writes the audio to stdout, ffmpeg reads it and outputs raw PCM
-    const ytdlp = spawn('yt-dlp', [
-        '-f', 'bestaudio[ext=webm]/bestaudio/best',
-        '--no-warnings',
-        '--no-call-home',
-        '--no-check-certificate',
-        '-o', '-',   // output to stdout
-        url,
-    ], { stdio: ['ignore', 'pipe', 'ignore'] });
+async function getAudioStream(url) {
+    // Step 1: get the direct CDN audio URL from yt-dlp
+    const { stdout } = await execAsync(
+        `yt-dlp -f "bestaudio[ext=webm]/bestaudio/best" --get-url --no-warnings --no-check-certificate "${url}"`,
+        { maxBuffer: 1 * 1024 * 1024, timeout: 30000 }
+    );
 
+    const audioUrl = stdout.trim().split('\n')[0];
+    if (!audioUrl) throw new Error('yt-dlp returned no audio URL');
+
+    // Step 2: stream from CDN URL through ffmpeg, output raw PCM
     const ffmpeg = spawn('ffmpeg', [
-        '-i', 'pipe:0',          // read from stdin (yt-dlp stdout)
+        '-reconnect', '1',
+        '-reconnect_streamed', '1',
+        '-reconnect_delay_max', '5',
+        '-i', audioUrl,
         '-analyzeduration', '0',
         '-loglevel', '0',
-        '-f', 's16le',           // raw PCM
-        '-ar', '48000',          // 48kHz sample rate (Discord standard)
-        '-ac', '2',              // stereo
-        'pipe:1',                // output to stdout
-    ], { stdio: ['pipe', 'pipe', 'ignore'] });
+        '-f', 's16le',   // signed 16-bit little-endian PCM
+        '-ar', '48000',  // 48kHz (Discord standard)
+        '-ac', '2',      // stereo
+        'pipe:1',        // output to stdout
+    ], { stdio: ['ignore', 'pipe', 'ignore'] });
 
-    // Pipe yt-dlp into ffmpeg
-    ytdlp.stdout.pipe(ffmpeg.stdin);
-
-    ytdlp.on('error', (e) => console.error('[yt-dlp spawn error]', e.message));
-    ffmpeg.on('error', (e) => console.error('[ffmpeg spawn error]', e.message));
+    ffmpeg.on('error', (e) => console.error('[ffmpeg error]', e.message));
 
     return ffmpeg.stdout;
 }
@@ -146,7 +151,7 @@ class MusicQueue {
         this.currentSong = this.songs.shift();
 
         try {
-            const stream = getAudioStream(this.currentSong.url);
+            const stream = await getAudioStream(this.currentSong.url);
             const resource = createAudioResource(stream, { inputType: StreamType.Raw });
             this.player.play(resource);
 
