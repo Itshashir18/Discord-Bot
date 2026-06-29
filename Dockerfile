@@ -1,8 +1,11 @@
 # Use the official Node.js 20 image
 FROM node:20-slim
 
-# Install ffmpeg for audio transcoding
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+# Install ffmpeg, python3, and yt-dlp
+RUN apt-get update && apt-get install -y ffmpeg python3 curl && \
+    curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
+    chmod a+rx /usr/local/bin/yt-dlp && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create and change to the app directory
 WORKDIR /usr/src/app

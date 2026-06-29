@@ -8,8 +8,10 @@ const {
     StreamType,
 } = require('@discordjs/voice');
 const { EmbedBuilder } = require('discord.js');
-const ytdl = require('@distube/ytdl-core');
 const play = require('play-dl');
+const { spawn, exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 
 const queues = new Map();
 
@@ -23,24 +25,22 @@ function formatDuration(seconds) {
 }
 
 /**
- * Resolves a URL or search query into song info.
- * - For URLs: uses @distube/ytdl-core to get video details
- * - For search queries: uses play-dl search (lightweight HTTP request)
+ * Resolves a URL or search query into song info using play-dl (which works great for search).
  */
 async function searchYouTube(query) {
     const isUrl = query.startsWith('http://') || query.startsWith('https://');
 
     if (isUrl) {
-        const info = await ytdl.getInfo(query);
-        const v = info.videoDetails;
+        // Just extract info, play-dl is fine for this
+        const info = await play.video_info(query);
+        const v = info.video_details;
         return {
             title: v.title,
-            url: v.video_url,
-            duration: formatDuration(parseInt(v.lengthSeconds) || 0),
+            url: v.url,
+            duration: v.durationRaw || 'Unknown',
             thumbnail: v.thumbnails?.[v.thumbnails.length - 1]?.url || '',
         };
     } else {
-        // play-dl search is reliable even when play-dl streaming is not
         const results = await play.search(query, { limit: 1, source: { youtube: 'video' } });
         if (!results?.length) return null;
         const v = results[0];
@@ -54,17 +54,36 @@ async function searchYouTube(query) {
 }
 
 /**
- * Creates a WebM/Opus audio stream from YouTube.
- * YouTube natively serves audio in WebM/Opus format at 48kHz —
- * the exact format Discord uses. This means zero transcoding needed.
+ * Gets a raw PCM audio stream from YouTube via system yt-dlp + ffmpeg pipe.
+ * yt-dlp binary is the ONLY downloader that consistently defeats YouTube's 403 blocks.
  */
 function getAudioStream(url) {
-    return ytdl(url, {
-        filter: fmt => fmt.codecs === 'opus' && fmt.container === 'webm',
-        quality: 'highestaudio',
-        highWaterMark: 1 << 25,
-        dlChunkSize: 0,
-    });
+    const ytdlp = spawn('yt-dlp', [
+        '-f', 'bestaudio[ext=webm]/bestaudio/best',
+        '--no-warnings',
+        '--no-call-home',
+        '--no-check-certificate',
+        '-o', '-',   // output to stdout
+        url,
+    ], { stdio: ['ignore', 'pipe', 'ignore'] });
+
+    const ffmpeg = spawn('ffmpeg', [
+        '-i', 'pipe:0',          // read from stdin (yt-dlp stdout)
+        '-analyzeduration', '0',
+        '-loglevel', '0',
+        '-f', 's16le',           // raw PCM
+        '-ar', '48000',          // 48kHz (Discord standard)
+        '-ac', '2',              // stereo
+        'pipe:1',                // output to stdout
+    ], { stdio: ['pipe', 'pipe', 'ignore'] });
+
+    // Pipe yt-dlp into ffmpeg
+    ytdlp.stdout.pipe(ffmpeg.stdin);
+
+    ytdlp.on('error', (e) => console.error('[yt-dlp spawn error]', e.message));
+    ffmpeg.on('error', (e) => console.error('[ffmpeg spawn error]', e.message));
+
+    return ffmpeg.stdout;
 }
 
 class MusicQueue {
@@ -134,8 +153,10 @@ class MusicQueue {
 
         try {
             const stream = getAudioStream(this.currentSong.url);
+            
+            // Raw PCM stream from ffmpeg needs StreamType.Raw
             const resource = createAudioResource(stream, {
-                inputType: StreamType.WebmOpus, // Native Discord format, no transcoding
+                inputType: StreamType.Raw,
             });
             this.player.play(resource);
 
