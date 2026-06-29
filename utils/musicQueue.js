@@ -47,14 +47,15 @@ async function searchMusic(query) {
                 thumbnail: info.thumbnail || '',
             };
         } else {
-            // Search SoundCloud for top 10 results
-            const results = await play.search(query, { limit: 10, source: { soundcloud: 'tracks' } });
+            // Search SoundCloud for top 20 results to widen the pool
+            const results = await play.search(query, { limit: 20, source: { soundcloud: 'tracks' } });
             if (!results || results.length === 0) return null;
             
             // Keywords that indicate a non-original track
             const badKeywords = [
                 'slowed', 'reverb', 'nightcore', 'sped up', 'fast', 'cover', 'remix', 'mashup', 
-                '8d', 'bass boosted', 'instrumental', 'karaoke', 'lofi', 'lo-fi', 'tiktok version', 'live'
+                '8d', 'bass boosted', 'instrumental', 'karaoke', 'lofi', 'lo-fi', 'tiktok version', 'live',
+                'remake', 'bootleg', 'edit', 'rework', 'mix', 'loop', 'full', 'extended', 'version'
             ];
             
             // Function to score a track (lower score is better)
