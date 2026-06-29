@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { getQueue, createQueue, searchYouTube } = require('../utils/musicQueue');
+const { getQueue, createQueue, searchMusic } = require('../utils/musicQueue');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -7,7 +7,7 @@ module.exports = {
         .setDescription('Play a song in your voice channel')
         .addStringOption(option =>
             option.setName('query')
-                .setDescription('Song name or YouTube URL')
+                .setDescription('Song name or SoundCloud URL')
                 .setRequired(true)
         ),
 
@@ -29,9 +29,9 @@ module.exports = {
         try {
             await interaction.editReply({ content: `🔍 Searching for **${query}**...` });
 
-            const songInfo = await searchYouTube(query);
+            const songInfo = await searchMusic(query);
             if (!songInfo) {
-                return interaction.editReply({ content: '❌ No results found! Try a different search term or YouTube URL.' });
+                return interaction.editReply({ content: '❌ No results found! Try a different search term or SoundCloud URL.' });
             }
 
             songInfo.requestedBy = interaction.user.username;
@@ -61,13 +61,13 @@ module.exports = {
                         { name: '📋 Position', value: `#${queue.songs.length}`, inline: true }
                     )
                     .setThumbnail(songInfo.thumbnail)
-                    .setColor('#1DB954');
+                    .setColor('#FF5500');
 
                 await interaction.editReply({ embeds: [embed] });
             }
         } catch (error) {
             console.error('[/play] Error:', error);
-            await interaction.editReply({ content: '❌ Something went wrong. Try a YouTube URL directly (e.g. `https://youtube.com/watch?v=...`)' });
+            await interaction.editReply({ content: '❌ Something went wrong. Try a SoundCloud URL directly.' });
         }
     },
 };

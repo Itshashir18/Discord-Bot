@@ -9,11 +9,17 @@ const {
 } = require('@discordjs/voice');
 const { EmbedBuilder } = require('discord.js');
 const play = require('play-dl');
-const { spawn, exec } = require('child_process');
-const { promisify } = require('util');
-const execAsync = promisify(exec);
 
 const queues = new Map();
+
+// Initialize SoundCloud Client ID for play-dl
+play.getFreeClientID().then(clientID => {
+    play.setToken({
+        soundcloud: {
+            client_id: clientID
+        }
+    });
+}).catch(console.error);
 
 function formatDuration(seconds) {
     if (!seconds) return 'Live';
@@ -25,65 +31,39 @@ function formatDuration(seconds) {
 }
 
 /**
- * Resolves a URL or search query into song info using play-dl (which works great for search).
+ * Searches SoundCloud instead of YouTube.
+ * YouTube actively blocks all cloud hosting IPs (like Railway).
+ * SoundCloud allows free streaming without IP bans.
  */
-async function searchYouTube(query) {
-    const isUrl = query.startsWith('http://') || query.startsWith('https://');
+async function searchMusic(query) {
+    try {
+        const isUrl = query.startsWith('http://') || query.startsWith('https://');
 
-    if (isUrl) {
-        // Just extract info, play-dl is fine for this
-        const info = await play.video_info(query);
-        const v = info.video_details;
-        return {
-            title: v.title,
-            url: v.url,
-            duration: v.durationRaw || 'Unknown',
-            thumbnail: v.thumbnails?.[v.thumbnails.length - 1]?.url || '',
-        };
-    } else {
-        const results = await play.search(query, { limit: 1, source: { youtube: 'video' } });
-        if (!results?.length) return null;
-        const v = results[0];
-        return {
-            title: v.title || 'Unknown',
-            url: v.url,
-            duration: v.durationRaw || 'Unknown',
-            thumbnail: v.thumbnails?.[v.thumbnails.length - 1]?.url || '',
-        };
+        if (isUrl && query.includes('soundcloud.com')) {
+            const info = await play.soundcloud(query);
+            return {
+                title: info.name,
+                url: info.url,
+                duration: formatDuration(info.durationInSec),
+                thumbnail: info.thumbnail || '',
+            };
+        } else {
+            // Search SoundCloud
+            const results = await play.search(query, { limit: 1, source: { soundcloud: 'tracks' } });
+            if (!results || results.length === 0) return null;
+            
+            const track = results[0];
+            return {
+                title: track.name || track.title || 'Unknown',
+                url: track.url,
+                duration: formatDuration(track.durationInSec),
+                thumbnail: track.thumbnail || '',
+            };
+        }
+    } catch (error) {
+        console.error('SoundCloud Search Error:', error);
+        return null;
     }
-}
-
-/**
- * Highly robust two-step audio pipeline:
- * 1. Extract direct CDN URL via yt-dlp
- * 2. Stream directly from CDN via ffmpeg with reconnects enabled
- * This prevents stream starvation when YouTube aggressively throttles connections.
- */
-async function getAudioStream(url) {
-    const { stdout } = await execAsync(
-        `yt-dlp -f "bestaudio[ext=webm]/bestaudio/best" --get-url --no-warnings --no-check-certificate "${url}"`,
-        { maxBuffer: 1 * 1024 * 1024, timeout: 30000 }
-    );
-
-    const audioUrl = stdout.trim().split('\n')[0];
-    if (!audioUrl) throw new Error('yt-dlp returned no audio URL');
-
-    const ffmpeg = spawn('ffmpeg', [
-        '-reconnect', '1',
-        '-reconnect_streamed', '1',
-        '-reconnect_delay_max', '5',
-        '-i', audioUrl,
-        '-analyzeduration', '0',
-        '-loglevel', '0',
-        '-f', 's16le',
-        '-ar', '48000',
-        '-ac', '2',
-        'pipe:1'
-    ], { stdio: ['ignore', 'pipe', 'ignore'] });
-
-    ffmpeg.on('error', (e) => console.error('[ffmpeg error]', e.message));
-
-    return ffmpeg.stdout;
 }
 
 class MusicQueue {
@@ -152,12 +132,13 @@ class MusicQueue {
         this.currentSong = this.songs.shift();
 
         try {
-            const stream = await getAudioStream(this.currentSong.url);
+            // Stream directly using play-dl (which now safely pulls from SoundCloud)
+            const stream = await play.stream(this.currentSong.url);
             
-            // Raw PCM stream from ffmpeg needs StreamType.Raw
-            const resource = createAudioResource(stream, {
-                inputType: StreamType.Raw,
+            const resource = createAudioResource(stream.stream, {
+                inputType: stream.type,
             });
+            
             this.player.play(resource);
 
             const embed = new EmbedBuilder()
@@ -169,7 +150,7 @@ class MusicQueue {
                     { name: '📋 Up Next', value: this.songs.length > 0 ? `${this.songs.length} song(s)` : 'Nothing', inline: true }
                 )
                 .setThumbnail(this.currentSong.thumbnail)
-                .setColor('#1DB954');
+                .setColor('#FF5500'); // SoundCloud Orange
 
             this.textChannel.send({ embeds: [embed] }).catch(() => {});
         } catch (error) {
@@ -207,4 +188,4 @@ function createQueue(guildId, voiceChannel, textChannel) {
     return queue;
 }
 
-module.exports = { getQueue, createQueue, searchYouTube };
+module.exports = { getQueue, createQueue, searchMusic };
