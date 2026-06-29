@@ -157,8 +157,7 @@ class MusicQueue {
 
         try {
             // Stream directly using play-dl (which now safely pulls from SoundCloud)
-            // quality: 2 forces the highest available bitrate from SoundCloud (usually 128kbps Opus or 256kbps AAC)
-            const stream = await play.stream(this.currentSong.url, { quality: 2 });
+            const stream = await play.stream(this.currentSong.url);
             
             const resource = createAudioResource(stream.stream, {
                 inputType: stream.type,
