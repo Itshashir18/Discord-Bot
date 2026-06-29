@@ -32,30 +32,39 @@ module.exports = {
             console.log(`[Player State] ${oldState.status} -> ${newState.status}`);
         });
 
-        connection.subscribe(player);
-        
-        // Wait for the UDP connection to fully establish before playing
-        const { entersState, VoiceConnectionStatus } = require('@discordjs/voice');
+        // Test SoundCloud Stream
+        const play = require('play-dl');
+        const voice = require('@discordjs/voice');
         try {
-            await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
-            console.log('[Voice Debug] Connection is READY. Starting playback.');
-        } catch (error) {
-            console.error('[Voice Error] Failed to connect to UDP voice server within 20s');
-            return interaction.editReply('❌ Network Error: The bot could not establish a UDP connection to Discord\'s voice servers. This is likely a cloud hosting firewall issue.');
-        }
+            await interaction.editReply(`🔍 Testing SoundCloud extraction...\n\`\`\`\n${voice.generateDependencyReport()}\n\`\`\``);
+            
+            // Ensure client ID is ready
+            const cid = await play.getFreeClientID();
+            await play.setToken({ soundcloud: { client_id: cid } });
 
-        // Use a publicly accessible mp3 sound effect
-        const resource = createAudioResource('https://www.soundjay.com/buttons/sounds/button-1.mp3');
-        
-        player.play(resource);
-        
-        player.on(AudioPlayerStatus.Playing, () => {
-            interaction.editReply('🔊 Beeping! If you hear this, Discord voice is working. If you don\'t, the issue is ffmpeg/opus dependencies.');
-        });
-        
-        player.on('error', e => {
-            console.error(e);
-            interaction.editReply(`Error: ${e.message}`);
-        });
+            const results = await play.search('blinding lights', { limit: 1, source: { soundcloud: 'tracks' } });
+            const trackUrl = results[0].url;
+            
+            await interaction.editReply(`✅ Found track: ${trackUrl}\n🔄 Attempting to extract stream...`);
+
+            const stream = await play.stream(trackUrl);
+            
+            await interaction.editReply(`✅ Stream extracted (Type: ${stream.type}).\n▶️ Attempting playback via Discord.js...`);
+
+            const resource = createAudioResource(stream.stream, {
+                inputType: stream.type,
+                inlineVolume: false,
+            });
+            
+            player.play(resource);
+            
+            player.on(AudioPlayerStatus.Playing, () => {
+                interaction.editReply('🔊 **SUCCESS!** The audio pipeline is fully working. You should hear music now.');
+            });
+
+        } catch (error) {
+            console.error('[TestAudio Error]', error);
+            interaction.editReply(`❌ **PIPELINE ERROR:**\n\`\`\`js\n${error.message}\n${error.stack}\n\`\`\``);
+        }
     }
 }
