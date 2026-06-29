@@ -156,6 +156,10 @@ class MusicQueue {
         this.currentSong = this.songs.shift();
 
         try {
+            // Ensure SoundCloud client ID is strictly set before extraction to prevent 404s
+            const cid = await play.getFreeClientID();
+            await play.setToken({ soundcloud: { client_id: cid } });
+
             // Stream directly using play-dl (which now safely pulls from SoundCloud)
             const stream = await play.stream(this.currentSong.url);
             
