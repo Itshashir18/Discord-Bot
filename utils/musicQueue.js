@@ -8,10 +8,9 @@ const {
     StreamType,
 } = require('@discordjs/voice');
 const { EmbedBuilder } = require('discord.js');
-const { exec, spawn } = require('child_process');
-const { promisify } = require('util');
+const ytdl = require('@distube/ytdl-core');
+const play = require('play-dl');
 
-const execAsync = promisify(exec);
 const queues = new Map();
 
 function formatDuration(seconds) {
@@ -24,65 +23,48 @@ function formatDuration(seconds) {
 }
 
 /**
- * Search YouTube or resolve a URL using system yt-dlp binary.
- * Returns basic song info (title, url, duration, thumbnail).
+ * Resolves a URL or search query into song info.
+ * - For URLs: uses @distube/ytdl-core to get video details
+ * - For search queries: uses play-dl search (lightweight HTTP request)
  */
 async function searchYouTube(query) {
     const isUrl = query.startsWith('http://') || query.startsWith('https://');
-    const target = isUrl ? `"${query}"` : `"ytsearch1:${query}"`;
 
-    const { stdout } = await execAsync(
-        `yt-dlp --dump-json --no-warnings --no-check-certificate ${target}`,
-        { maxBuffer: 10 * 1024 * 1024 }
-    );
-
-    const lines = stdout.trim().split('\n').filter(Boolean);
-    if (!lines.length) return null;
-
-    const video = JSON.parse(lines[0]);
-
-    return {
-        title: video.title || 'Unknown Title',
-        url: video.webpage_url || video.original_url || query,
-        duration: formatDuration(video.duration || 0),
-        thumbnail: video.thumbnail || '',
-    };
+    if (isUrl) {
+        const info = await ytdl.getInfo(query);
+        const v = info.videoDetails;
+        return {
+            title: v.title,
+            url: v.video_url,
+            duration: formatDuration(parseInt(v.lengthSeconds) || 0),
+            thumbnail: v.thumbnails?.[v.thumbnails.length - 1]?.url || '',
+        };
+    } else {
+        // play-dl search is reliable even when play-dl streaming is not
+        const results = await play.search(query, { limit: 1, source: { youtube: 'video' } });
+        if (!results?.length) return null;
+        const v = results[0];
+        return {
+            title: v.title || 'Unknown',
+            url: v.url,
+            duration: v.durationRaw || 'Unknown',
+            thumbnail: v.thumbnails?.[v.thumbnails.length - 1]?.url || '',
+        };
+    }
 }
 
 /**
- * Two-step audio streaming:
- * 1. yt-dlp --get-url → extract the direct CDN audio URL
- * 2. ffmpeg -i <CDN_URL> → stream with reconnect support → raw PCM to Discord
- *
- * This is more reliable than piping yt-dlp into ffmpeg directly.
+ * Creates a high-quality audio stream via @distube/ytdl-core.
+ * This is a pure Node.js solution — no external binaries needed.
+ * The stream is passed to @discordjs/voice which uses ffmpeg to transcode it.
  */
-async function getAudioStream(url) {
-    // Step 1: get the direct CDN audio URL from yt-dlp
-    const { stdout } = await execAsync(
-        `yt-dlp -f "bestaudio[ext=webm]/bestaudio/best" --get-url --no-warnings --no-check-certificate "${url}"`,
-        { maxBuffer: 1 * 1024 * 1024, timeout: 30000 }
-    );
-
-    const audioUrl = stdout.trim().split('\n')[0];
-    if (!audioUrl) throw new Error('yt-dlp returned no audio URL');
-
-    // Step 2: stream from CDN URL through ffmpeg, output raw PCM
-    const ffmpeg = spawn('ffmpeg', [
-        '-reconnect', '1',
-        '-reconnect_streamed', '1',
-        '-reconnect_delay_max', '5',
-        '-i', audioUrl,
-        '-analyzeduration', '0',
-        '-loglevel', '0',
-        '-f', 's16le',   // signed 16-bit little-endian PCM
-        '-ar', '48000',  // 48kHz (Discord standard)
-        '-ac', '2',      // stereo
-        'pipe:1',        // output to stdout
-    ], { stdio: ['ignore', 'pipe', 'ignore'] });
-
-    ffmpeg.on('error', (e) => console.error('[ffmpeg error]', e.message));
-
-    return ffmpeg.stdout;
+function getAudioStream(url) {
+    return ytdl(url, {
+        filter: 'audioonly',
+        quality: 'highestaudio',
+        highWaterMark: 1 << 25, // 32MB buffer to prevent choppy audio
+        dlChunkSize: 0,         // Let ytdl decide chunk size
+    });
 }
 
 class MusicQueue {
@@ -151,8 +133,10 @@ class MusicQueue {
         this.currentSong = this.songs.shift();
 
         try {
-            const stream = await getAudioStream(this.currentSong.url);
-            const resource = createAudioResource(stream, { inputType: StreamType.Raw });
+            const stream = getAudioStream(this.currentSong.url);
+            const resource = createAudioResource(stream, {
+                inputType: StreamType.Arbitrary, // ffmpeg will auto-detect and transcode
+            });
             this.player.play(resource);
 
             const embed = new EmbedBuilder()
