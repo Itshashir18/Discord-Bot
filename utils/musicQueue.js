@@ -8,67 +8,36 @@ const {
     StreamType,
 } = require('@discordjs/voice');
 const { EmbedBuilder } = require('discord.js');
-const ytdlp = require('yt-dlp-exec');
-const { spawn } = require('child_process');
+const { exec, spawn } = require('child_process');
+const { promisify } = require('util');
 
-// Per-guild queue storage
+const execAsync = promisify(exec);
 const queues = new Map();
 
-/**
- * Uses yt-dlp to get direct audio stream URL, then pipes through ffmpeg.
- * This is far more reliable than play-dl which breaks when YouTube changes their API.
- */
-async function getAudioStream(url) {
-    // Get the best audio-only format URL from yt-dlp
-    const info = await ytdlp(url, {
-        format: 'bestaudio[ext=webm]/bestaudio/best',
-        getUrl: true,
-        noWarnings: true,
-        noCallHome: true,
-        preferFreeFormats: true,
-        youtubeSkipDashManifest: true,
-    });
-
-    const audioUrl = info.toString().trim();
-
-    // Pipe it through ffmpeg to get a PCM stream
-    const ffmpeg = spawn('ffmpeg', [
-        '-reconnect', '1',
-        '-reconnect_streamed', '1',
-        '-reconnect_delay_max', '5',
-        '-i', audioUrl,
-        '-analyzeduration', '0',
-        '-loglevel', '0',
-        '-f', 's16le',
-        '-ar', '48000',
-        '-ac', '2',
-        'pipe:1'
-    ], { stdio: ['ignore', 'pipe', 'ignore'] });
-
-    return ffmpeg.stdout;
+function formatDuration(seconds) {
+    if (!seconds) return 'Live';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 /**
- * Search YouTube using yt-dlp and return video info.
+ * Search YouTube or resolve a URL using the system yt-dlp binary.
+ * No npm package needed — calls the compiled binary directly.
  */
 async function searchYouTube(query) {
     const isUrl = query.startsWith('http://') || query.startsWith('https://');
-    const searchQuery = isUrl ? query : `ytsearch1:${query}`;
+    const target = isUrl ? `"${query}"` : `"ytsearch1:${query}"`;
 
-    const result = await ytdlp(searchQuery, {
-        dumpSingleJson: true,
-        noWarnings: true,
-        noCallHome: true,
-        noCheckCertificate: true,
-        preferFreeFormats: true,
-        youtubeSkipDashManifest: true,
-        flatPlaylist: true,
-    });
+    const cmd = `yt-dlp --dump-json --no-warnings --no-call-home --no-check-certificate --flat-playlist ${target}`;
+    const { stdout } = await execAsync(cmd, { maxBuffer: 10 * 1024 * 1024 });
 
-    // yt-dlp returns the video directly for URLs, or wrapped in entries for searches
-    const video = result.entries ? result.entries[0] : result;
+    const lines = stdout.trim().split('\n').filter(Boolean);
+    if (!lines.length) return null;
 
-    if (!video) return null;
+    const video = JSON.parse(lines[0]);
 
     return {
         title: video.title || 'Unknown Title',
@@ -78,13 +47,37 @@ async function searchYouTube(query) {
     };
 }
 
-function formatDuration(seconds) {
-    if (!seconds) return 'Live';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    return `${m}:${String(s).padStart(2, '0')}`;
+/**
+ * Get a raw PCM audio stream for a given YouTube URL via yt-dlp → ffmpeg pipeline.
+ */
+function getAudioStream(url) {
+    // yt-dlp writes the audio to stdout, ffmpeg reads it and outputs raw PCM
+    const ytdlp = spawn('yt-dlp', [
+        '-f', 'bestaudio[ext=webm]/bestaudio/best',
+        '--no-warnings',
+        '--no-call-home',
+        '--no-check-certificate',
+        '-o', '-',   // output to stdout
+        url,
+    ], { stdio: ['ignore', 'pipe', 'ignore'] });
+
+    const ffmpeg = spawn('ffmpeg', [
+        '-i', 'pipe:0',          // read from stdin (yt-dlp stdout)
+        '-analyzeduration', '0',
+        '-loglevel', '0',
+        '-f', 's16le',           // raw PCM
+        '-ar', '48000',          // 48kHz sample rate (Discord standard)
+        '-ac', '2',              // stereo
+        'pipe:1',                // output to stdout
+    ], { stdio: ['pipe', 'pipe', 'ignore'] });
+
+    // Pipe yt-dlp into ffmpeg
+    ytdlp.stdout.pipe(ffmpeg.stdin);
+
+    ytdlp.on('error', (e) => console.error('[yt-dlp spawn error]', e.message));
+    ffmpeg.on('error', (e) => console.error('[ffmpeg spawn error]', e.message));
+
+    return ffmpeg.stdout;
 }
 
 class MusicQueue {
@@ -97,17 +90,13 @@ class MusicQueue {
         this.player = createAudioPlayer();
         this.connection = null;
         this._inactivityTimer = null;
-
         this._setupPlayerEvents();
     }
 
     _setupPlayerEvents() {
-        this.player.on(AudioPlayerStatus.Idle, () => {
-            this._playNext();
-        });
-
-        this.player.on('error', (error) => {
-            console.error(`[MusicQueue] Player error in guild ${this.guildId}:`, error.message);
+        this.player.on(AudioPlayerStatus.Idle, () => this._playNext());
+        this.player.on('error', (err) => {
+            console.error(`[MusicQueue] Player error:`, err.message);
             this._playNext();
         });
     }
@@ -119,7 +108,6 @@ class MusicQueue {
             guildId: voiceChannel.guild.id,
             adapterCreator: voiceChannel.guild.voiceAdapterCreator,
         });
-
         this.connection.subscribe(this.player);
 
         this.connection.on(VoiceConnectionStatus.Disconnected, async () => {
@@ -158,11 +146,8 @@ class MusicQueue {
         this.currentSong = this.songs.shift();
 
         try {
-            const audioStream = await getAudioStream(this.currentSong.url);
-            const resource = createAudioResource(audioStream, {
-                inputType: StreamType.Raw,
-            });
-
+            const stream = getAudioStream(this.currentSong.url);
+            const resource = createAudioResource(stream, { inputType: StreamType.Raw });
             this.player.play(resource);
 
             const embed = new EmbedBuilder()
@@ -190,21 +175,10 @@ class MusicQueue {
         }
     }
 
-    skip() {
-        this.player.stop(true);
-    }
-
-    pause() {
-        return this.player.pause();
-    }
-
-    resume() {
-        return this.player.unpause();
-    }
-
-    getStatus() {
-        return this.player.state.status;
-    }
+    skip() { this.player.stop(true); }
+    pause() { return this.player.pause(); }
+    resume() { return this.player.unpause(); }
+    getStatus() { return this.player.state.status; }
 
     destroy() {
         if (this._inactivityTimer) clearTimeout(this._inactivityTimer);
@@ -215,9 +189,7 @@ class MusicQueue {
     }
 }
 
-function getQueue(guildId) {
-    return queues.get(guildId) || null;
-}
+function getQueue(guildId) { return queues.get(guildId) || null; }
 
 function createQueue(guildId, voiceChannel, textChannel) {
     const queue = new MusicQueue(guildId, voiceChannel, textChannel);
