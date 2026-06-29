@@ -32,8 +32,7 @@ function formatDuration(seconds) {
 
 /**
  * Searches SoundCloud instead of YouTube.
- * YouTube actively blocks all cloud hosting IPs (like Railway).
- * SoundCloud allows free streaming without IP bans.
+ * Intelligently filters out remixes, slowed, reverb, and covers to find the original track.
  */
 async function searchMusic(query) {
     try {
@@ -48,16 +47,41 @@ async function searchMusic(query) {
                 thumbnail: info.thumbnail || '',
             };
         } else {
-            // Search SoundCloud
-            const results = await play.search(query, { limit: 1, source: { soundcloud: 'tracks' } });
+            // Search SoundCloud for top 10 results
+            const results = await play.search(query, { limit: 10, source: { soundcloud: 'tracks' } });
             if (!results || results.length === 0) return null;
             
-            const track = results[0];
+            // Keywords that indicate a non-original track
+            const badKeywords = [
+                'slowed', 'reverb', 'nightcore', 'sped up', 'fast', 'cover', 'remix', 'mashup', 
+                '8d', 'bass boosted', 'instrumental', 'karaoke', 'lofi', 'lo-fi', 'tiktok version', 'live'
+            ];
+            
+            // Function to score a track (lower score is better)
+            const getScore = (track) => {
+                let score = 0;
+                const titleLower = (track.name || track.title || '').toLowerCase();
+                
+                // Heavily penalize tracks containing bad keywords
+                for (const word of badKeywords) {
+                    if (titleLower.includes(word)) score += 100;
+                }
+                
+                // Prefer tracks that have a reasonable duration (e.g., > 1min and < 10min) to avoid snippets or full albums
+                if (track.durationInSec < 60) score += 50;
+                if (track.durationInSec > 600) score += 50;
+                
+                return score;
+            };
+
+            // Sort results by score (ascending) and pick the best one
+            const bestTrack = results.sort((a, b) => getScore(a) - getScore(b))[0];
+            
             return {
-                title: track.name || track.title || 'Unknown',
-                url: track.url,
-                duration: formatDuration(track.durationInSec),
-                thumbnail: track.thumbnail || '',
+                title: bestTrack.name || bestTrack.title || 'Unknown',
+                url: bestTrack.url,
+                duration: formatDuration(bestTrack.durationInSec),
+                thumbnail: bestTrack.thumbnail || '',
             };
         }
     } catch (error) {
