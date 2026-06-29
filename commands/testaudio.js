@@ -18,9 +18,32 @@ module.exports = {
             adapterCreator: interaction.guild.voiceAdapterCreator,
         });
         
+        // --- ADDING VERBOSE NETWORK DEBUGGING ---
+        connection.on('debug', msg => console.log('[Voice Debug]', msg));
+        connection.on('error', err => console.error('[Voice Error]', err));
+        connection.on('stateChange', (oldState, newState) => {
+            console.log(`[Voice State] ${oldState.status} -> ${newState.status}`);
+        });
+
         const player = createAudioPlayer();
+        player.on('debug', msg => console.log('[Player Debug]', msg));
+        player.on('error', err => console.error('[Player Error]', err));
+        player.on('stateChange', (oldState, newState) => {
+            console.log(`[Player State] ${oldState.status} -> ${newState.status}`);
+        });
+
         connection.subscribe(player);
         
+        // Wait for the UDP connection to fully establish before playing
+        const { entersState, VoiceConnectionStatus } = require('@discordjs/voice');
+        try {
+            await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
+            console.log('[Voice Debug] Connection is READY. Starting playback.');
+        } catch (error) {
+            console.error('[Voice Error] Failed to connect to UDP voice server within 20s');
+            return interaction.editReply('❌ Network Error: The bot could not establish a UDP connection to Discord\'s voice servers. This is likely a cloud hosting firewall issue.');
+        }
+
         // Use a publicly accessible mp3 sound effect
         const resource = createAudioResource('https://www.soundjay.com/buttons/sounds/button-1.mp3');
         
