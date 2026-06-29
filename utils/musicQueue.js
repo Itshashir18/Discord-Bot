@@ -174,8 +174,11 @@ class MusicQueue {
                     { name: '👤 Requested by', value: this.currentSong.requestedBy, inline: true },
                     { name: '📋 Up Next', value: this.songs.length > 0 ? `${this.songs.length} song(s)` : 'Nothing', inline: true }
                 )
-                .setThumbnail(this.currentSong.thumbnail)
                 .setColor('#FF5500'); // SoundCloud Orange
+
+            if (this.currentSong.thumbnail) {
+                embed.setThumbnail(this.currentSong.thumbnail);
+            }
 
             this.textChannel.send({ embeds: [embed] }).catch(() => {});
         } catch (error) {

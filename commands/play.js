@@ -60,8 +60,11 @@ module.exports = {
                         { name: '⏱️ Duration', value: songInfo.duration, inline: true },
                         { name: '📋 Position', value: `#${queue.songs.length}`, inline: true }
                     )
-                    .setThumbnail(songInfo.thumbnail)
                     .setColor('#FF5500');
+
+                if (songInfo.thumbnail) {
+                    embed.setThumbnail(songInfo.thumbnail);
+                }
 
                 await interaction.editReply({ embeds: [embed] });
             }
