@@ -177,7 +177,14 @@ module.exports = {
             await getOrCreateChannel('🔊 Chameleon Lobby 1', ChannelType.GuildVoice, { parent: mcChCat.id, userLimit: 10 });
             await getOrCreateChannel('🔊 Chameleon Lobby 2', ChannelType.GuildVoice, { parent: mcChCat.id, userLimit: 10 });
 
-            // 11. 🔊 Dynamic Voice Lounge
+            // 11. 🎵 Music Lounge
+            const musicCat = await getOrCreateChannel('🎵 Music Lounge', ChannelType.GuildCategory, { permissionOverwrites: lockedCategoryPerms });
+            await getOrCreateChannel('🎵・music-commands', ChannelType.GuildText, { parent: musicCat.id, topic: 'Use /play, /skip, /stop, /pause, /resume, /nowplaying here!' });
+            await getOrCreateChannel('🎶・song-requests', ChannelType.GuildText, { parent: musicCat.id, topic: 'Drop your song requests here!' });
+            await getOrCreateChannel('🔊 Music Room 1', ChannelType.GuildVoice, { parent: musicCat.id });
+            await getOrCreateChannel('🔊 Music Room 2', ChannelType.GuildVoice, { parent: musicCat.id });
+
+            // 12. 🔊 Dynamic Voice Lounge
             const voiceCat = await getOrCreateChannel('🔊 Voice Lounge', ChannelType.GuildCategory, { permissionOverwrites: lockedCategoryPerms });
             await getOrCreateChannel('🔊 The Lounge', ChannelType.GuildVoice, { parent: voiceCat.id });
             await getOrCreateChannel('🔴 Streamers', ChannelType.GuildVoice, { parent: voiceCat.id });

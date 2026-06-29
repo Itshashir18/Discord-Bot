@@ -1,6 +1,9 @@
 # Use the official Node.js 20 image
 FROM node:20-slim
 
+# Install ffmpeg for audio transcoding (required by @discordjs/voice)
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+
 # Create and change to the app directory
 WORKDIR /usr/src/app
 
