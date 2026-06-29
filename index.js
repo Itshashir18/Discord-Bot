@@ -87,9 +87,17 @@ for (const file of commandFiles) {
 const tempChannels = new Set();
 let joinToCreateChannelId = null;
 
-client.once('clientReady', (c) => {
-    console.log(`Ready! Logged in as ${c.user.tag}`);
-    c.user.setActivity('Chill Scene', { type: 3 }); // type 3 is "Watching"
+client.once(Events.ClientReady, async readyClient => {
+    console.log(`Ready! Logged in as ${readyClient.user.tag}`);
+    
+    // Automatically deploy slash commands on startup
+    console.log('Deploying slash commands...');
+    try {
+        require('./deploy-commands.js');
+    } catch (e) {
+        console.error('Failed to deploy commands:', e);
+    }
+    readyClient.user.setActivity('Chill Scene', { type: 3 }); // type 3 is "Watching"
 });
 
 client.on('interactionCreate', async interaction => {

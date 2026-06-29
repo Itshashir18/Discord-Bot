@@ -54,34 +54,34 @@ async function searchYouTube(query) {
 }
 
 /**
- * Gets a raw PCM audio stream from YouTube via system yt-dlp + ffmpeg pipe.
- * yt-dlp binary is the ONLY downloader that consistently defeats YouTube's 403 blocks.
+ * Highly robust two-step audio pipeline:
+ * 1. Extract direct CDN URL via yt-dlp
+ * 2. Stream directly from CDN via ffmpeg with reconnects enabled
+ * This prevents stream starvation when YouTube aggressively throttles connections.
  */
-function getAudioStream(url) {
-    const ytdlp = spawn('yt-dlp', [
-        '-f', 'bestaudio[ext=webm]/bestaudio/best',
-        '--no-warnings',
-        '--no-call-home',
-        '--no-check-certificate',
-        '-o', '-',   // output to stdout
-        url,
-    ], { stdio: ['ignore', 'pipe', 'ignore'] });
+async function getAudioStream(url) {
+    const { stdout } = await execAsync(
+        `yt-dlp -f "bestaudio[ext=webm]/bestaudio/best" --get-url --no-warnings --no-check-certificate "${url}"`,
+        { maxBuffer: 1 * 1024 * 1024, timeout: 30000 }
+    );
+
+    const audioUrl = stdout.trim().split('\n')[0];
+    if (!audioUrl) throw new Error('yt-dlp returned no audio URL');
 
     const ffmpeg = spawn('ffmpeg', [
-        '-i', 'pipe:0',          // read from stdin (yt-dlp stdout)
+        '-reconnect', '1',
+        '-reconnect_streamed', '1',
+        '-reconnect_delay_max', '5',
+        '-i', audioUrl,
         '-analyzeduration', '0',
         '-loglevel', '0',
-        '-f', 's16le',           // raw PCM
-        '-ar', '48000',          // 48kHz (Discord standard)
-        '-ac', '2',              // stereo
-        'pipe:1',                // output to stdout
-    ], { stdio: ['pipe', 'pipe', 'ignore'] });
+        '-f', 's16le',
+        '-ar', '48000',
+        '-ac', '2',
+        'pipe:1'
+    ], { stdio: ['ignore', 'pipe', 'ignore'] });
 
-    // Pipe yt-dlp into ffmpeg
-    ytdlp.stdout.pipe(ffmpeg.stdin);
-
-    ytdlp.on('error', (e) => console.error('[yt-dlp spawn error]', e.message));
-    ffmpeg.on('error', (e) => console.error('[ffmpeg spawn error]', e.message));
+    ffmpeg.on('error', (e) => console.error('[ffmpeg error]', e.message));
 
     return ffmpeg.stdout;
 }
@@ -152,7 +152,7 @@ class MusicQueue {
         this.currentSong = this.songs.shift();
 
         try {
-            const stream = getAudioStream(this.currentSong.url);
+            const stream = await getAudioStream(this.currentSong.url);
             
             // Raw PCM stream from ffmpeg needs StreamType.Raw
             const resource = createAudioResource(stream, {
