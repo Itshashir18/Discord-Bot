@@ -182,8 +182,8 @@ class MusicQueue {
 
             this.textChannel.send({ embeds: [embed] }).catch(() => {});
         } catch (error) {
-            console.error(`[MusicQueue] Failed to play "${this.currentSong?.title}":`, error.message);
-            this.textChannel.send({ content: `❌ Couldn't play **${this.currentSong?.title}** — skipping...` }).catch(() => {});
+            console.error(`[MusicQueue] Failed to play "${this.currentSong?.title}":`, error.stack);
+            this.textChannel.send({ content: `❌ PIPELINE CRASH on **${this.currentSong?.title}**:\n\`\`\`js\n${error.message}\n${error.stack.split('\n')[1]}\n\`\`\`` }).catch(() => {});
             this._playNext();
         }
     }
