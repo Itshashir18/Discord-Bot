@@ -54,16 +54,16 @@ async function searchYouTube(query) {
 }
 
 /**
- * Creates a high-quality audio stream via @distube/ytdl-core.
- * This is a pure Node.js solution — no external binaries needed.
- * The stream is passed to @discordjs/voice which uses ffmpeg to transcode it.
+ * Creates a WebM/Opus audio stream from YouTube.
+ * YouTube natively serves audio in WebM/Opus format at 48kHz —
+ * the exact format Discord uses. This means zero transcoding needed.
  */
 function getAudioStream(url) {
     return ytdl(url, {
-        filter: 'audioonly',
+        filter: fmt => fmt.codecs === 'opus' && fmt.container === 'webm',
         quality: 'highestaudio',
-        highWaterMark: 1 << 25, // 32MB buffer to prevent choppy audio
-        dlChunkSize: 0,         // Let ytdl decide chunk size
+        highWaterMark: 1 << 25,
+        dlChunkSize: 0,
     });
 }
 
@@ -135,7 +135,7 @@ class MusicQueue {
         try {
             const stream = getAudioStream(this.currentSong.url);
             const resource = createAudioResource(stream, {
-                inputType: StreamType.Arbitrary, // ffmpeg will auto-detect and transcode
+                inputType: StreamType.WebmOpus, // Native Discord format, no transcoding
             });
             this.player.play(resource);
 
