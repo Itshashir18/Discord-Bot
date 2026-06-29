@@ -36,6 +36,10 @@ function formatDuration(seconds) {
  */
 async function searchMusic(query) {
     try {
+        // Ensure token is set before doing any stream testing
+        const cid = await play.getFreeClientID();
+        await play.setToken({ soundcloud: { client_id: cid } });
+
         const isUrl = query.startsWith('http://') || query.startsWith('https://');
 
         if (isUrl && query.includes('soundcloud.com')) {
@@ -75,15 +79,28 @@ async function searchMusic(query) {
                 return score;
             };
 
-            // Sort results by score (ascending) and pick the best one
-            const bestTrack = results.sort((a, b) => getScore(a) - getScore(b))[0];
+            // Sort results by score (ascending)
+            const sortedTracks = results.sort((a, b) => getScore(a) - getScore(b));
             
-            return {
-                title: bestTrack.name || bestTrack.title || 'Unknown',
-                url: bestTrack.url,
-                duration: formatDuration(bestTrack.durationInSec),
-                thumbnail: bestTrack.thumbnail || '',
-            };
+            // Iterate through the best tracks and find the first one that is actually streamable (no 404s)
+            for (const track of sortedTracks) {
+                try {
+                    // Test if the track can be streamed without throwing a 404
+                    await play.stream(track.url);
+                    
+                    return {
+                        title: track.name || track.title || 'Unknown',
+                        url: track.url,
+                        duration: formatDuration(track.durationInSec),
+                        thumbnail: track.thumbnail || '',
+                    };
+                } catch (err) {
+                    console.log(`[MusicQueue] Skipping ${track.url} due to stream error: ${err.message}`);
+                    continue; // Try the next best track
+                }
+            }
+            
+            return null; // No streamable tracks found
         }
     } catch (error) {
         console.error('SoundCloud Search Error:', error);
