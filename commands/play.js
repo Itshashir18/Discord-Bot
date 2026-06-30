@@ -33,11 +33,10 @@ module.exports = {
                 return interaction.editReply({ content: '❌ The music player is not initialized yet!' });
             }
 
-            // If the user typed a plain song name (not a link), force YouTube Music search.
-            // We cannot use Spotify search without Spotify Developer API keys configured.
-            // YouTube Music returns official studio metadata without needing API keys, bypassing regular YouTube covers.
+            // If the user typed a plain song name (not a link), force Apple Music search.
+            // Apple Music returns official studio metadata without needing API keys.
             const isUrl = query.startsWith('http://') || query.startsWith('https://');
-            const searchEngine = isUrl ? QueryType.AUTO : QueryType.YOUTUBE_MUSIC_SEARCH;
+            const searchEngine = isUrl ? QueryType.AUTO : QueryType.APPLE_MUSIC_SEARCH;
 
             // Execute the search and play
             const { track } = await player.play(voiceChannel, query, {

@@ -16,20 +16,15 @@ async function initPlayer(client) {
 
     const { YoutubeiExtractor } = require('discord-player-youtubei');
 
-    const fs = require('fs');
-    const path = require('path');
-    let youtubeCookies = '';
-    const cookiesPath = path.join(__dirname, '..', 'youtube.cookies.txt');
-    if (fs.existsSync(cookiesPath)) {
-        youtubeCookies = fs.readFileSync(cookiesPath, 'utf8');
-    }
-
     // Load all default extractors
     await player.extractors.loadMulti(DefaultExtractors);
 
-    // Register discord-player-youtubei to handle YouTube with our cookies
+    // Register discord-player-youtubei without the broken netscape cookies
+    // (it uses youtubei.js which bypasses most blocks natively)
     await player.extractors.register(YoutubeiExtractor, {
-        authentication: youtubeCookies
+        streamOptions: {
+            useClient: 'ANDROID'
+        }
     });
 
     // Set up event listeners for the player
