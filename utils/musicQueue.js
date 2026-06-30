@@ -61,15 +61,18 @@ async function searchMusic(query) {
                 '8d', 'bass boosted', 'instrumental', 'karaoke', 'lofi', 'lo-fi', 'tiktok version', 'live',
                 'remake', 'bootleg', 'edit', 'rework', 'mix', 'loop', 'full', 'extended', 'version'
             ];
-            
+            const queryLower = query.toLowerCase();
+
             // Function to score a track (lower score is better)
             const getScore = (track) => {
                 let score = 0;
                 const titleLower = (track.name || track.title || '').toLowerCase();
                 
-                // Heavily penalize tracks containing bad keywords
+                // Heavily penalize tracks containing bad keywords, BUT only if the user didn't explicitly search for that keyword
                 for (const word of badKeywords) {
-                    if (titleLower.includes(word)) score += 100;
+                    if (titleLower.includes(word) && !queryLower.includes(word)) {
+                        score += 10000; // Basically hard-ban this track unless it's the absolute only one left
+                    }
                 }
                 
                 // Prefer tracks that have a reasonable duration (e.g., > 1min and < 10min) to avoid snippets or full albums
