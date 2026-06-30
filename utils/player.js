@@ -14,18 +14,9 @@ async function initPlayer(client) {
         }
     });
 
-    const { YoutubeiExtractor } = require('discord-player-youtubei');
-
     // Load all default extractors
     await player.extractors.loadMulti(DefaultExtractors);
 
-    // Register discord-player-youtubei without the broken netscape cookies
-    // (it uses youtubei.js which bypasses most blocks natively)
-    await player.extractors.register(YoutubeiExtractor, {
-        streamOptions: {
-            useClient: 'ANDROID'
-        }
-    });
 
     // Set up event listeners for the player
     player.events.on('playerStart', (queue, track) => {
