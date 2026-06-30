@@ -1,47 +1,33 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { getQueue } = require('../utils/musicQueue');
-const { AudioPlayerStatus } = require('@discordjs/voice');
+const { useQueue } = require('discord-player');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('nowplaying')
-        .setDescription('Show the current song and music queue'),
-
+        .setDescription('Shows the currently playing song.'),
     async execute(interaction) {
-        const queue = getQueue(interaction.guild.id);
+        const queue = useQueue(interaction.guildId);
 
-        if (!queue || !queue.currentSong) {
-            return interaction.reply({ content: '❌ Nothing is playing right now!', ephemeral: true });
+        if (!queue || !queue.isPlaying()) {
+            return interaction.reply({ content: '❌ There is no music playing right now!', ephemeral: true });
         }
 
-        const status = queue.getStatus() === AudioPlayerStatus.Paused ? '⏸️ Paused' : '▶️ Now Playing';
-
-        let description = `**[${queue.currentSong.title}](${queue.currentSong.url})**\n\n`;
-
-        if (queue.songs.length > 0) {
-            description += '**📋 Up Next:**\n';
-            const preview = queue.songs.slice(0, 8);
-            preview.forEach((song, i) => {
-                description += `\`${i + 1}.\` [${song.title}](${song.url}) \`${song.duration}\`\n`;
-            });
-            if (queue.songs.length > 8) {
-                description += `\n*...and ${queue.songs.length - 8} more*`;
-            }
-        } else {
-            description += '*No songs in queue*';
-        }
+        const track = queue.currentTrack;
 
         const embed = new EmbedBuilder()
-            .setTitle(`🎵 ${status}`)
-            .setDescription(description)
+            .setTitle('🎵 Now Playing')
+            .setDescription(`**[${track.title}](${track.url})**`)
             .addFields(
-                { name: '⏱️ Duration', value: queue.currentSong.duration || 'Unknown', inline: true },
-                { name: '👤 Requested by', value: queue.currentSong.requestedBy, inline: true },
-                { name: '📋 Queue Size', value: `${queue.songs.length} song(s)`, inline: true }
+                { name: '⏱️ Duration', value: track.duration, inline: true },
+                { name: '👤 Requested by', value: track.requestedBy?.username || 'Unknown', inline: true },
+                { name: '🎙️ Artist', value: track.author, inline: true }
             )
-            .setThumbnail(queue.currentSong.thumbnail)
             .setColor('#1DB954');
 
-        await interaction.reply({ embeds: [embed] });
+        if (track.thumbnail) {
+            embed.setThumbnail(track.thumbnail);
+        }
+
+        return interaction.reply({ embeds: [embed] });
     },
 };
