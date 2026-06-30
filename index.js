@@ -87,9 +87,14 @@ for (const file of commandFiles) {
 const tempChannels = new Set();
 let joinToCreateChannelId = null;
 
+const { initPlayer } = require('./utils/player');
+
 client.once(Events.ClientReady, async readyClient => {
     console.log(`Ready! Logged in as ${readyClient.user.tag}`);
     
+    // Initialize the powerful discord-player music engine globally
+    await initPlayer(client);
+
     // Automatically deploy slash commands on startup
     console.log('Deploying slash commands...');
     try {
