@@ -1,76 +1,69 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { getQueue, createQueue, searchMusic } = require('../utils/musicQueue');
+const { getPlayer } = require('../utils/player');
+const { useMainPlayer } = require('discord-player');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('play')
-        .setDescription('Play a song in your voice channel')
+        .setDescription('Plays a song from YouTube, Spotify, or Apple Music.')
         .addStringOption(option =>
             option.setName('query')
-                .setDescription('Song name or SoundCloud URL')
-                .setRequired(true)
-        ),
-
+                .setDescription('The name of the song or URL to play')
+                .setRequired(true)),
     async execute(interaction) {
+        const query = interaction.options.getString('query');
+        const voiceChannel = interaction.member.voice.channel;
+
+        if (!voiceChannel) {
+            return interaction.reply({ content: '❌ You must be in a voice channel to play music!', ephemeral: true });
+        }
+
+        const permissions = voiceChannel.permissionsFor(interaction.client.user);
+        if (!permissions.has('Connect') || !permissions.has('Speak')) {
+            return interaction.reply({ content: '❌ I need the permissions to join and speak in your voice channel!', ephemeral: true });
+        }
+
         await interaction.deferReply();
 
-        const voiceChannel = interaction.member.voice.channel;
-        if (!voiceChannel) {
-            return interaction.editReply({ content: '❌ You need to join a voice channel first!' });
-        }
-
-        const permissions = voiceChannel.permissionsFor(interaction.guild.members.me);
-        if (!permissions.has('Connect') || !permissions.has('Speak')) {
-            return interaction.editReply({ content: '❌ I don\'t have permission to join or speak in your voice channel!' });
-        }
-
-        const query = interaction.options.getString('query');
-
         try {
-            await interaction.editReply({ content: `🔍 Searching for **${query}**...` });
-
-            const songInfo = await searchMusic(query);
-            if (!songInfo) {
-                return interaction.editReply({ content: '❌ No results found! Try a different search term or SoundCloud URL.' });
+            // Get the global player instance
+            const player = getPlayer() || useMainPlayer();
+            
+            if (!player) {
+                return interaction.editReply({ content: '❌ The music player is not initialized yet!' });
             }
 
-            songInfo.requestedBy = interaction.user.username;
-
-            let queue = getQueue(interaction.guild.id);
-
-            if (!queue) {
-                queue = createQueue(interaction.guild.id, voiceChannel, interaction.channel);
-                await queue.connect(voiceChannel);
-            } else if (queue.voiceChannel.id !== voiceChannel.id) {
-                return interaction.editReply({ content: '❌ I\'m already playing in a different voice channel!' });
-            }
-
-            queue.addSong(songInfo);
-
-            const isFirst = !queue.currentSong && queue.songs.length === 1;
-
-            if (isFirst) {
-                await queue.startPlaying();
-                await interaction.editReply({ content: `▶️ Starting **${songInfo.title}**...` });
-            } else {
-                const embed = new EmbedBuilder()
-                    .setTitle('➕ Added to Queue')
-                    .setDescription(`**[${songInfo.title}](${songInfo.url})**`)
-                    .addFields(
-                        { name: '⏱️ Duration', value: songInfo.duration, inline: true },
-                        { name: '📋 Position', value: `#${queue.songs.length}`, inline: true }
-                    )
-                    .setColor('#FF5500');
-
-                if (songInfo.thumbnail) {
-                    embed.setThumbnail(songInfo.thumbnail);
+            // Execute the search and play
+            const { track } = await player.play(voiceChannel, query, {
+                nodeOptions: {
+                    metadata: {
+                        channel: interaction.channel,
+                        client: interaction.guild.members.me
+                    },
+                    leaveOnEmpty: true,
+                    leaveOnEmptyCooldown: 300000,
+                    leaveOnEnd: true,
+                    leaveOnEndCooldown: 300000,
                 }
+            });
 
-                await interaction.editReply({ embeds: [embed] });
+            const embed = new EmbedBuilder()
+                .setTitle('➕ Added to Queue')
+                .setDescription(`**[${track.title}](${track.url})**`)
+                .addFields(
+                    { name: '⏱️ Duration', value: track.duration, inline: true },
+                    { name: '🎙️ Artist', value: track.author, inline: true }
+                )
+                .setColor('#FF5500');
+
+            if (track.thumbnail) {
+                embed.setThumbnail(track.thumbnail);
             }
+
+            await interaction.editReply({ embeds: [embed] });
         } catch (error) {
-            console.error('[/play] Error:', error);
-            await interaction.editReply({ content: '❌ Something went wrong. Try a SoundCloud URL directly.' });
+            console.error('[Play Command Error]:', error);
+            await interaction.editReply({ content: `❌ Couldn't play \`${query}\`.\nError: ${error.message}` });
         }
     },
 };

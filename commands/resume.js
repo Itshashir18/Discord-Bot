@@ -1,27 +1,18 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { getQueue } = require('../utils/musicQueue');
-const { AudioPlayerStatus } = require('@discordjs/voice');
+const { useQueue } = require('discord-player');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('resume')
-        .setDescription('Resume the paused song'),
-
+        .setDescription('Resumes the currently paused song.'),
     async execute(interaction) {
-        if (!interaction.member.voice.channel) {
-            return interaction.reply({ content: '❌ You need to be in a voice channel!', ephemeral: true });
+        const queue = useQueue(interaction.guildId);
+
+        if (!queue || !queue.node.isPaused()) {
+            return interaction.reply({ content: '❌ The music is not paused!', ephemeral: true });
         }
 
-        const queue = getQueue(interaction.guild.id);
-        if (!queue || !queue.currentSong) {
-            return interaction.reply({ content: '❌ Nothing is playing right now!', ephemeral: true });
-        }
-
-        if (queue.getStatus() !== AudioPlayerStatus.Paused) {
-            return interaction.reply({ content: '▶️ Music is already playing!', ephemeral: true });
-        }
-
-        queue.resume();
-        await interaction.reply({ content: `▶️ Resumed **${queue.currentSong.title}**` });
+        queue.node.setPaused(false);
+        return interaction.reply({ content: '▶️ Resumed the music.' });
     },
 };
