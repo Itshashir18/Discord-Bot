@@ -12,6 +12,7 @@
     "@discord-player/extractor": "^7.2.0",
     "@discordjs/voice": "^0.19.2",
     "@distube/ytdl-core": "^4.16.12",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "discord-player": "^7.2.0",
     "discord-player-jiosaavn": "^0.0.1",
     "discord-player-youtubei": "^2.0.0",
