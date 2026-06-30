@@ -14,6 +14,8 @@ async function initPlayer(client) {
         }
     });
 
+    const { YoutubeiExtractor } = require('discord-player-youtubei');
+
     const fs = require('fs');
     const path = require('path');
     let youtubeCookies = '';
@@ -22,12 +24,12 @@ async function initPlayer(client) {
         youtubeCookies = fs.readFileSync(cookiesPath, 'utf8');
     }
 
-    // Load all default extractors (Spotify, Apple Music, YouTube, SoundCloud)
-    // The youtube-ext module (included by default) has advanced 403 bypass mechanisms
-    await player.extractors.loadMulti(DefaultExtractors, {
-        youtubei: {
-            authentication: youtubeCookies
-        }
+    // Load all default extractors
+    await player.extractors.loadMulti(DefaultExtractors);
+
+    // Register discord-player-youtubei to handle YouTube with our cookies
+    await player.extractors.register(YoutubeiExtractor, {
+        authentication: youtubeCookies
     });
 
     // Set up event listeners for the player
