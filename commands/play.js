@@ -49,29 +49,7 @@ module.exports = {
                     leaveOnEmpty: true,
                     leaveOnEmptyCooldown: 300000,
                     leaveOnEnd: true,
-                    leaveOnEndCooldown: 300000,
-                    onBeforeCreateStream: async (track, source, _queue) => {
-                        // YouTube streaming is severely blocked globally right now.
-                        // We will bridge all YouTube audio streams to SoundCloud using play-dl!
-                        if (track.url.includes('youtube.com') || track.url.includes('youtu.be')) {
-                            try {
-                                const playdl = require('play-dl');
-                                const clientId = await playdl.getFreeClientID();
-                                await playdl.setToken({ soundcloud: { client_id: clientId } });
-                                
-                                const searchQuery = `${track.title} ${track.author}`;
-                                const searched = await playdl.search(searchQuery, { source: { soundcloud: 'tracks' }, limit: 1 });
-                                
-                                if (searched && searched.length > 0) {
-                                    const stream = await playdl.stream(searched[0].url);
-                                    return stream.stream;
-                                }
-                            } catch (e) {
-                                console.error('Bridge failed:', e);
-                            }
-                        }
-                        return null; // fallback to default extractors if bridge fails
-                    }
+                    leaveOnEndCooldown: 300000
                 }
             });
 
