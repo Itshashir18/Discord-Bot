@@ -14,9 +14,21 @@ async function initPlayer(client) {
         }
     });
 
+    const fs = require('fs');
+    const path = require('path');
+    let youtubeCookies = '';
+    const cookiesPath = path.join(__dirname, '..', 'youtube.cookies.txt');
+    if (fs.existsSync(cookiesPath)) {
+        youtubeCookies = fs.readFileSync(cookiesPath, 'utf8');
+    }
+
     // Load all default extractors (Spotify, Apple Music, YouTube, SoundCloud)
     // The youtube-ext module (included by default) has advanced 403 bypass mechanisms
-    await player.extractors.loadMulti(DefaultExtractors);
+    await player.extractors.loadMulti(DefaultExtractors, {
+        youtubei: {
+            authentication: youtubeCookies
+        }
+    });
 
     // Set up event listeners for the player
     player.events.on('playerStart', (queue, track) => {
