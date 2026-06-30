@@ -4,7 +4,7 @@
   "description": "Advanced Gaming Discord Bot",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node -e \"process.env.DISABLE_MUSIC='true'; require('./index.js')\"",
     "start:railway": "node -e \"process.env.DISABLE_MUSIC='true'; require('./index.js')\"",
     "start:local": "node -e \"process.env.ONLY_MUSIC='true'; require('./index.js')\""
   },
