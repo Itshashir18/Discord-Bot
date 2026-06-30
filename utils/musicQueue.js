@@ -60,7 +60,7 @@ async function searchMusic(query) {
                 'slowed', 'reverb', 'nightcore', 'sped up', 'fast', 'cover', 'remix', 'mashup', 
                 '8d', 'bass boosted', 'instrumental', 'karaoke', 'lofi', 'lo-fi', 'tiktok version', 'live',
                 'remake', 'bootleg', 'edit', 'rework', 'mix', 'loop', 'full', 'extended', 'version',
-                '(feat', '(ft', ' feat ', ' ft ', ' feat.', ' ft.'
+                '(feat', '(ft', ' feat ', ' ft ', ' feat.', ' ft.', 'unplugged', 'acoustic'
             ];
             const queryLower = query.toLowerCase();
 
