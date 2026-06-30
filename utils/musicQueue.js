@@ -66,7 +66,9 @@ async function searchMusic(query) {
             // Function to score a track (lower score is better)
             const getScore = (track) => {
                 let score = 0;
-                const titleLower = (track.name || track.title || '').toLowerCase();
+                // Normalize Unicode characters (like 𝑺𝒍𝒐𝒘𝒆𝒅) back to standard ASCII before checking
+                const rawTitle = track.name || track.title || '';
+                const titleLower = rawTitle.normalize('NFKC').toLowerCase();
                 
                 // Heavily penalize tracks containing bad keywords, BUT only if the user didn't explicitly search for that keyword
                 for (const word of badKeywords) {
