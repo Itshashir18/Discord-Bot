@@ -118,6 +118,21 @@ client.on('interactionCreate', async interaction => {
 
         if (!command) return;
 
+        // --- Instance Splitting Logic ---
+        const musicCommands = ['play', 'stop', 'skip', 'pause', 'resume', 'nowplaying'];
+        const isMusicCommand = musicCommands.includes(interaction.commandName);
+
+        if (process.env.DISABLE_MUSIC === 'true' && isMusicCommand) {
+            // This is the Railway instance, ignore music commands
+            return;
+        }
+
+        if (process.env.ONLY_MUSIC === 'true' && !isMusicCommand) {
+            // This is the Local instance, ignore non-music commands
+            return;
+        }
+        // --------------------------------
+
         try {
             await command.execute(interaction);
         } catch (error) {
