@@ -4,11 +4,34 @@ let shoukaku = null;
 
 // This is a free public Lavalink node. 
 // For production, you should host your own and replace these credentials!
-const Nodes = [{
-    name: 'PublicLava',
-    url: 'lava.link:80',
-    auth: 'anything' // Public nodes often accept any password
-}];
+// These are free public Lavalink nodes from community lists.
+// Shoukaku will automatically connect and pick a working one.
+const Nodes = [
+    {
+        name: 'AjieDev',
+        url: 'lava-v4.ajieblogs.eu.org:443',
+        auth: 'https://dsc.gg/ajidevserver',
+        secure: true
+    },
+    {
+        name: 'Serenetia',
+        url: 'lavalinkv4-id.serenetia.com:443',
+        auth: 'BatuManaBisa',
+        secure: true
+    },
+    {
+        name: 'SleepyInsomniac',
+        url: 'll.sleepyinsomniac.eu.org:80',
+        auth: 'youshallnotpass',
+        secure: false
+    },
+    {
+        name: 'Jirayu',
+        url: 'lavalink.jirayu.net:13592',
+        auth: 'youshallnotpass',
+        secure: false
+    }
+];
 
 async function initPlayer(client) {
     if (shoukaku) return shoukaku;
