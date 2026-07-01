@@ -76,7 +76,7 @@ module.exports = {
             });
 
             // Play the track
-            await player.playTrack({ track: track.encoded });
+            await player.playTrack({ track: { encoded: track.encoded } });
 
             const durationFormatted = track.info.isStream ? 'LIVE' : new Date(track.info.length).toISOString().substr(11, 8).replace(/^00:/, '');
 
