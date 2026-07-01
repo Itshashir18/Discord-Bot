@@ -1,18 +1,21 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { useQueue } = require('discord-player');
+const { getPlayer } = require('../utils/player');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('stop')
         .setDescription('Stops the music and clears the queue.'),
     async execute(interaction) {
-        const queue = useQueue(interaction.guildId);
+        const shoukaku = getPlayer();
+        if (!shoukaku) return interaction.reply({ content: '❌ Lavalink is not connected!', ephemeral: true });
 
-        if (!queue) {
+        const player = shoukaku.players.get(interaction.guildId);
+
+        if (!player) {
             return interaction.reply({ content: '❌ There is no music playing right now!', ephemeral: true });
         }
 
-        queue.delete();
-        return interaction.reply({ content: '🛑 Stopped the music and cleared the queue.' });
+        shoukaku.leaveVoiceChannel(interaction.guildId);
+        return interaction.reply({ content: '🛑 Stopped the music and disconnected.' });
     },
 };

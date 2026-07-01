@@ -118,24 +118,6 @@ client.on('interactionCreate', async interaction => {
 
         if (!command) return;
 
-        // --- Instance Splitting Logic ---
-        const musicCommands = ['play', 'stop', 'skip', 'pause', 'resume', 'nowplaying'];
-        const isMusicCommand = musicCommands.includes(interaction.commandName);
-
-        // Auto-detect cloud environments (Railway, HuggingFace, Render, etc)
-        const isCloudHosting = !!(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID || process.env.SPACE_ID || process.env.DISABLE_MUSIC === 'true');
-        
-        // If we are on the cloud (Railway), ignore music commands because the IP is banned by YouTube.
-        if (isCloudHosting && isMusicCommand) {
-            return;
-        }
-
-        // If we are running locally (ONLY_MUSIC=true), ignore non-music commands so Railway can handle them.
-        if (process.env.ONLY_MUSIC === 'true' && !isMusicCommand) {
-            return;
-        }
-        // --------------------------------
-
         try {
             await command.execute(interaction);
         } catch (error) {

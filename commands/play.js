@@ -1,11 +1,10 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getPlayer } = require('../utils/player');
-const { useMainPlayer, QueryType } = require('discord-player');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('play')
-        .setDescription('Plays a song from YouTube, Spotify, or Apple Music.')
+        .setDescription('Plays a song using the new Lavalink architecture.')
         .addStringOption(option =>
             option.setName('query')
                 .setDescription('The name of the song or URL to play')
@@ -18,53 +17,77 @@ module.exports = {
             return interaction.reply({ content: '❌ You must be in a voice channel to play music!', ephemeral: true });
         }
 
-        const permissions = voiceChannel.permissionsFor(interaction.client.user);
-        if (!permissions.has('Connect') || !permissions.has('Speak')) {
-            return interaction.reply({ content: '❌ I need the permissions to join and speak in your voice channel!', ephemeral: true });
-        }
-
         await interaction.deferReply();
 
         try {
-            // Get the global player instance
-            const player = getPlayer() || useMainPlayer();
-            
-            if (!player) {
-                return interaction.editReply({ content: '❌ The music player is not initialized yet!' });
+            const shoukaku = getPlayer();
+            if (!shoukaku) {
+                return interaction.editReply({ content: '❌ The Lavalink node is not connected yet! Please try again in a few seconds.' });
             }
 
-            // If the user typed a plain song name (not a link), force YouTube search.
-            // Regular YouTube search finds original lyrical/music videos better than YouTube Music.
-            const isUrl = query.startsWith('http://') || query.startsWith('https://');
-            const searchEngine = isUrl ? QueryType.AUTO : QueryType.YOUTUBE_SEARCH;
+            // Get a node to perform the search
+            const node = shoukaku.options.nodeResolver(shoukaku.nodes);
+            if (!node) {
+                return interaction.editReply({ content: '❌ No Lavalink nodes are available!' });
+            }
 
-            // Execute the search and play
-            const { track } = await player.play(voiceChannel, query, {
-                searchEngine: searchEngine,
-                nodeOptions: {
-                    metadata: {
-                        channel: interaction.channel,
-                        client: interaction.guild.members.me
-                    },
-                    leaveOnEmpty: true,
-                    leaveOnEmptyCooldown: 300000,
-                    leaveOnEnd: true,
-                    leaveOnEndCooldown: 300000
-                }
+            // Check if it's a URL or a search query
+            const isUrl = query.startsWith('http://') || query.startsWith('https://');
+            const searchPrefix = isUrl ? '' : 'ytsearch:'; // Default to YouTube search
+            
+            // Resolve the track using the Lavalink node REST API
+            const result = await node.rest.resolve(`${searchPrefix}${query}`);
+
+            if (!result || !result.data || (result.loadType === 'empty' || result.loadType === 'error')) {
+                return interaction.editReply({ content: `❌ No results found or error occurred for \`${query}\`.` });
+            }
+
+            // Handle track or playlist
+            let track;
+            if (result.loadType === 'playlist') {
+                track = result.data.tracks[0]; // Just play the first track for simplicity in this basic setup
+            } else if (result.loadType === 'search') {
+                track = result.data[0];
+            } else {
+                track = result.data;
+            }
+
+            if (!track) {
+                return interaction.editReply({ content: `❌ Could not extract track data for \`${query}\`.` });
+            }
+
+            // Join the voice channel
+            const player = await shoukaku.joinVoiceChannel({
+                guildId: interaction.guildId,
+                channelId: voiceChannel.id,
+                shardId: 0
             });
 
+            // Set up basic events if not already set (in a robust setup, you'd have a queue manager)
+            player.removeAllListeners('closed');
+            player.removeAllListeners('end');
+            
+            player.on('closed', () => {
+                shoukaku.leaveVoiceChannel(interaction.guildId);
+            });
+            player.on('end', () => {
+                shoukaku.leaveVoiceChannel(interaction.guildId); // Just leaves after one song for this basic example
+                interaction.channel.send('✅ Finished playing track!').catch(() => {});
+            });
+
+            // Play the track
+            await player.playTrack({ track: track.encoded });
+
+            const durationFormatted = track.info.isStream ? 'LIVE' : new Date(track.info.length).toISOString().substr(11, 8).replace(/^00:/, '');
+
             const embed = new EmbedBuilder()
-                .setTitle('➕ Added to Queue')
-                .setDescription(`**[${track.title}](${track.url})**`)
+                .setTitle('🎵 Now Playing (Lavalink)')
+                .setDescription(`**[${track.info.title}](${track.info.uri})**`)
                 .addFields(
-                    { name: '⏱️ Duration', value: track.duration, inline: true },
-                    { name: '🎙️ Artist', value: track.author, inline: true }
+                    { name: '⏱️ Duration', value: durationFormatted, inline: true },
+                    { name: '🎙️ Artist', value: track.info.author, inline: true }
                 )
                 .setColor('#FF5500');
-
-            if (track.thumbnail) {
-                embed.setThumbnail(track.thumbnail);
-            }
 
             await interaction.editReply({ embeds: [embed] });
         } catch (error) {
