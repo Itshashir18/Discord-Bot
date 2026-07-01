@@ -8,28 +8,10 @@ let shoukaku = null;
 // Shoukaku will automatically connect and pick a working one.
 const Nodes = [
     {
-        name: 'AjieDev',
-        url: 'lava-v4.ajieblogs.eu.org:443',
-        auth: 'https://dsc.gg/ajidevserver',
+        name: 'PrivateHFNode',
+        url: 'urboihj-my-lavalink-node.hf.space:443',
+        auth: 'chillscene_secure_pass_2026',
         secure: true
-    },
-    {
-        name: 'Serenetia',
-        url: 'lavalinkv4-id.serenetia.com:443',
-        auth: 'BatuManaBisa',
-        secure: true
-    },
-    {
-        name: 'SleepyInsomniac',
-        url: 'll.sleepyinsomniac.eu.org:80',
-        auth: 'youshallnotpass',
-        secure: false
-    },
-    {
-        name: 'Jirayu',
-        url: 'lavalink.jirayu.net:13592',
-        auth: 'youshallnotpass',
-        secure: false
     }
 ];
 
@@ -46,6 +28,9 @@ async function initPlayer(client) {
 
     shoukaku.on('error', (_, error) => console.error('Shoukaku Error:', error));
     shoukaku.on('ready', (name) => console.log(`Lavalink Node ${name} is now connected.`));
+    shoukaku.on('close', (name, code, reason) => console.log(`Lavalink Node ${name} closed: ${code} - ${reason}`));
+    shoukaku.on('disconnect', (name, players, moved) => console.log(`Lavalink Node ${name} disconnected.`));
+    shoukaku.on('debug', (name, info) => console.log(`[Shoukaku Debug] ${name}: ${info}`));
 
     return shoukaku;
 }

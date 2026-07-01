@@ -91,9 +91,6 @@ const { initPlayer } = require('./utils/player');
 
 client.once(Events.ClientReady, async readyClient => {
     console.log(`Ready! Logged in as ${readyClient.user.tag}`);
-    
-    // Initialize the powerful discord-player music engine globally
-    await initPlayer(client);
 
     // Automatically deploy slash commands on startup
     console.log('Deploying slash commands...');
@@ -222,6 +219,9 @@ process.on('uncaughtException', (err) => {
 const login = async () => {
     console.log(`[${new Date().toISOString()}] Attempting to login to Discord...`);
     try {
+        // Initialize the Lavalink client before logging in
+        await initPlayer(client);
+        
         await client.login(process.env.DISCORD_TOKEN);
     } catch (err) {
         console.error(`[${new Date().toISOString()}] CRITICAL: Failed to login:`, err.message);
