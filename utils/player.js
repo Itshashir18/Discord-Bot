@@ -8,10 +8,28 @@ let shoukaku = null;
 // Shoukaku will automatically connect and pick a working one.
 const Nodes = [
     {
-        name: 'PrivateHFNode',
-        url: 'urboihj-my-lavalink-node.hf.space:443',
-        auth: 'chillscene_secure_pass_2026',
+        name: 'AjieDev',
+        url: 'lava-v4.ajieblogs.eu.org:443',
+        auth: 'https://dsc.gg/ajidevserver',
         secure: true
+    },
+    {
+        name: 'Serenetia',
+        url: 'lavalinkv4-id.serenetia.com:443',
+        auth: 'BatuManaBisa',
+        secure: true
+    },
+    {
+        name: 'SleepyInsomniac',
+        url: 'll.sleepyinsomniac.eu.org:80',
+        auth: 'youshallnotpass',
+        secure: false
+    },
+    {
+        name: 'Jirayu',
+        url: 'lavalink.jirayu.net:13592',
+        auth: 'youshallnotpass',
+        secure: false
     }
 ];
 
