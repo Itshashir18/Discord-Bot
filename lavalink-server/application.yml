@@ -1,15 +1,15 @@
 server:
-  port: 7860
+  port: 2333
   address: 0.0.0.0
 
 lavalink:
   plugins:
-    - dependency: "dev.lavalink.youtube:youtube-plugin:1.11.1"
+    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.1"
       snapshot: false
   server:
-    password: "chillscene_secure_pass_2026"
+    password: "ChillScene_Lavalink_2026!"
     sources:
-      youtube: false # Disabled to use the plugin instead
+      youtube: false
       bandcamp: true
       soundcloud: true
       twitch: true
@@ -46,15 +46,10 @@ plugins:
     allowDirectVideoIds: true
     allowDirectPlaylistIds: true
     clients:
-      - MUSIC
-      - ANDROID_TESTSUITE
-      - WEB
       - TVHTML5EMBEDDED
-
-metrics:
-  prometheus:
-    enabled: false
-    endpoint: /metrics
+      - ANDROID_TESTSUITE
+      - MUSIC
+      - WEB
 
 logging:
   file:

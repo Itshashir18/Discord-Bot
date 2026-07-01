@@ -35,15 +35,15 @@ module.exports = {
             console.log(`[Play] Selected node: ${node.name}. Resolving track: ${query}`);
             // Check if it's a URL or a search query
             const isUrl = query.startsWith('http://') || query.startsWith('https://');
-            const searchPrefix = isUrl ? '' : 'scsearch:'; // Use SoundCloud by default to bypass YouTube IP blocks
+            const searchPrefix = isUrl ? '' : 'ytsearch:';
             
             // Resolve the track using the Lavalink node REST API
             let result = await node.rest.resolve(`${searchPrefix}${query}`);
 
-            // If SoundCloud fails, fallback to YouTube search just in case
+            // If YouTube fails, fallback to SoundCloud
             if (!result || !result.data || (result.loadType === 'empty' || result.loadType === 'error')) {
-                console.log('[Play] SoundCloud failed. Falling back to YouTube...');
-                result = await node.rest.resolve(`ytsearch:${query}`);
+                console.log('[Play] YouTube failed. Falling back to SoundCloud...');
+                result = await node.rest.resolve(`scsearch:${query}`);
             }
 
             console.log(`[Play] Track resolved. LoadType: ${result ? result.loadType : 'null'}`);

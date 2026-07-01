@@ -2,28 +2,25 @@ const { Shoukaku, Connectors } = require('shoukaku');
 
 let shoukaku = null;
 
-// This is a free public Lavalink node. 
-// For production, you should host your own and replace these credentials!
-// These are free public Lavalink nodes from community lists.
-// Shoukaku will automatically connect and pick a working one.
+// Private Lavalink node on Railway (internal networking).
+// Set LAVALINK_HOST in Railway env vars to the internal hostname of your Lavalink service.
+// Format: <service-name>.railway.internal
+const privateHost = process.env.LAVALINK_HOST;
+
 const Nodes = [
+    // Private node — first priority
+    ...(privateHost ? [{
+        name: 'PrivateRailway',
+        url: `${privateHost}:2333`,
+        auth: 'ChillScene_Lavalink_2026!',
+        secure: false
+    }] : []),
+    // Public fallbacks
     {
         name: 'AjieDev',
         url: 'lava-v4.ajieblogs.eu.org:443',
         auth: 'https://dsc.gg/ajidevserver',
         secure: true
-    },
-    {
-        name: 'Serenetia',
-        url: 'lavalinkv4-id.serenetia.com:443',
-        auth: 'BatuManaBisa',
-        secure: true
-    },
-    {
-        name: 'SleepyInsomniac',
-        url: 'll.sleepyinsomniac.eu.org:80',
-        auth: 'youshallnotpass',
-        secure: false
     },
     {
         name: 'Jirayu',
